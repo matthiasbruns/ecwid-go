@@ -1,13 +1,20 @@
 # AGENTS.md — ecwid-go
 
-Instructions for AI agents working on this codebase.
+Instructions for AI agents working on this codebase. See also https://agents.md/.
 
 ## Project Overview
 
 Go API client and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-reference).
 
-- **API Client Library** (`ecwid/`): Stateless, stdlib-only, importable by other Go projects.
-- **CLI** (`cmd/ecwid/`): Cobra-based CLI wrapping the API client. Loads credentials from env or config file.
+**Three separate Go modules** in one repo, connected by `go.work`:
+
+| Module | Path | Purpose | Dependencies |
+|--------|------|---------|--------------|
+| `config` | `config/` | Config loading (file + env + flags) | stdlib only |
+| `ecwid` | `ecwid/` | API client library | stdlib + config |
+| `cli` | `cli/` | Cobra CLI wrapping the client | config + ecwid + cobra |
+
+Each module has its own `go.mod`. Local inter-module deps use `replace` directives.
 
 ## Architecture Principles
 
@@ -16,12 +23,12 @@ Go API client and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-refere
 The API client has **zero internal state**. No stored tokens, no singletons, no package-level vars.
 
 - Every request starts from scratch.
-- Credentials (`StoreID`, `Token`) are passed via a `Credentials` struct into each service method or through a `Client` that holds config but no mutable state.
+- Credentials (`StoreID`, `Token`) live in `config.Config`, passed into `NewClient()`.
 - The `Client` is safe for concurrent use — it holds only immutable config + an `*http.Client`.
 
 ```go
 // Good: credentials flow through explicitly
-client := ecwid.NewClient(ecwid.Config{
+client := ecwid.NewClient(config.Config{
     StoreID: "12345",
     Token:   "secret_abc",
 })
@@ -31,46 +38,48 @@ products, err := client.Products.Search(ctx, ecwid.SearchProductsRequest{Keyword
 ecwid.SetToken("secret_abc") // ← NEVER do this
 ```
 
+### Module Separation
+
+- `config/` is its own module so CLI dependencies (cobra) don't pollute it.
+- `ecwid/` imports `config/` but nothing else external — stdlib only.
+- `cli/` imports both `config/` and `ecwid/`, plus cobra.
+- Users who only need the API client import `ecwid/` and get zero transitive deps beyond `config/`.
+
 ### Package Layout
 
 ```
 ecwid-go/
-├── ecwid/              # Public API client library (importable)
-│   ├── client.go       # Client, Config, HTTP plumbing
-│   ├── errors.go       # API error types
-│   ├── products.go     # ProductService
-│   ├── products_test.go
-│   ├── orders.go       # OrderService
-│   ├── orders_test.go
-│   ├── categories.go   # CategoryService
-│   ├── customers.go    # CustomerService
-│   ├── carts.go        # CartService (abandoned carts)
-│   ├── subscriptions.go # SubscriptionService
-│   ├── discounts.go    # PromotionService + CouponService
-│   ├── profile.go      # StoreProfileService
-│   ├── reviews.go      # ReviewService
-│   ├── staff.go        # StaffService
-│   ├── domains.go      # DomainService
-│   ├── dictionaries.go # DictionaryService (countries, currencies, etc.)
-│   └── README.md       # Package-level agent instructions
-├── cmd/
-│   └── ecwid/          # CLI binary
-│       ├── main.go
-│       ├── root.go     # Root cobra command, config loading
-│       ├── products.go # `ecwid products list`, `ecwid products get`, etc.
-│       ├── orders.go
-│       └── README.md   # CLI agent instructions
-├── internal/
-│   └── config/         # Config file loading (YAML/TOML)
-│       └── config.go
-├── e2e/                # End-to-end tests against real Ecwid store
-│   ├── e2e_test.go
-│   └── README.md
+├── go.work             # Workspace: ./config, ./ecwid, ./cli
+├── config/             # Config module (stdlib only)
+│   ├── go.mod
+│   ├── config.go
+│   └── config_test.go
+├── ecwid/              # API client module (stdlib + config)
+│   ├── go.mod
+│   ├── client.go       # Client, HTTP plumbing (get/post/put/delete)
+│   ├── errors.go       # APIError, RateLimitError
+│   ├── retry.go        # Configurable retry transport for 429s
+│   ├── services.go     # Stub service structs
+│   ├── doc.go          # Package documentation
+│   ├── client_test.go  # Core HTTP tests
+│   ├── testdata/       # JSON fixtures
+│   ├── AGENTS.md       # Package-level agent instructions
+│   ├── products.go     # ProductService (future)
+│   ├── orders.go       # OrderService (future)
+│   └── ...             # One file per domain
+├── cli/                # CLI module (config + ecwid + cobra)
+│   ├── go.mod
+│   ├── main.go         # Entry point, slog JSON handler
+│   ├── cmd/
+│   │   ├── root.go     # Root command, global flags, config loading
+│   │   ├── version.go  # `ecwid version`
+│   │   └── ...         # One file per domain command
+│   └── AGENTS.md       # CLI agent instructions
+├── e2e/                # E2E tests (future, gated behind ECWID_E2E=1)
+├── Taskfile.yml        # Task runner (lint, test, e2e, build, all)
 ├── .pre-commit-config.yaml
 ├── .golangci.yml
-├── go.mod
-├── go.sum
-├── Makefile
+├── .github/workflows/ci.yml
 ├── LICENSE
 ├── README.md
 └── AGENTS.md           # This file
@@ -87,27 +96,29 @@ Follow [Effective Go](https://go.dev/doc/effective_go) strictly:
 - **Interfaces**: Accept interfaces, return structs. Keep interfaces small.
 - **Context**: Every API method takes `context.Context` as first parameter.
 - **Zero values**: Design structs so zero values are useful.
+- **Deferred closes**: Use `defer func() { _ = r.Close() }()` pattern (errcheck-safe).
 
 ### Error Handling
 
 ```go
 // All API errors are typed
-type APIError struct {
-    StatusCode int    `json:"-"`
-    Code       string `json:"errorCode"`
-    Message    string `json:"errorMessage"`
-}
-
-func (e *APIError) Error() string {
-    return fmt.Sprintf("ecwid: %d %s: %s", e.StatusCode, e.Code, e.Message)
-}
-
-// Callers can type-assert
 var apiErr *ecwid.APIError
 if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
     // handle not found
 }
+
+// Rate limit errors include RetryAfter
+var rlErr *ecwid.RateLimitError
+if errors.As(err, &rlErr) {
+    time.Sleep(rlErr.RetryAfter)
+}
 ```
+
+### Retry Transport
+
+Configurable via `config.Config.MaxRetries`:
+- `0` (default): no retries, caller handles 429s manually.
+- `> 0`: wraps `http.Client` transport, respects `Retry-After` header, respects context cancellation.
 
 ### Logging
 
@@ -115,56 +126,21 @@ if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
 - **NEVER** log credentials, tokens, or API keys. Not even at debug level.
 - Log request method + path + status code + duration. Redact the `Authorization` header.
 
-```go
-slog.Info("ecwid request",
-    "method", req.Method,
-    "path", req.URL.Path,
-    "status", resp.StatusCode,
-    "duration", time.Since(start),
-)
-```
-
 ### Testing
 
 - Every service method needs unit tests with `net/http/httptest`.
 - Mock the Ecwid API responses using recorded JSON fixtures in `testdata/`.
 - Test both success and error paths (400, 404, 429, 500).
 - Test query parameter encoding for search/filter endpoints.
-- E2E tests are separate in `e2e/` — they hit a real store and are gated behind `ECWID_E2E=1`.
-
-```go
-func TestProductService_Search(t *testing.T) {
-    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Assert request
-        assert(t, r.Method, http.MethodGet)
-        assert(t, r.URL.Path, "/api/v3/12345/products")
-        assert(t, r.URL.Query().Get("keyword"), "shirt")
-        assert(t, r.Header.Get("Authorization"), "Bearer test-token")
-
-        // Return fixture
-        w.Header().Set("Content-Type", "application/json")
-        w.Write(loadFixture(t, "products_search.json"))
-    }))
-    defer srv.Close()
-
-    client := ecwid.NewClient(ecwid.Config{
-        StoreID: "12345",
-        Token:   "test-token",
-        BaseURL: srv.URL, // Override for testing
-    })
-
-    resp, err := client.Products.Search(context.Background(), ecwid.SearchProductsRequest{
-        Keyword: "shirt",
-    })
-    // assertions...
-}
-```
+- Use stdlib `testing` only — no testify, no gomock.
+- E2E tests are separate in `e2e/` — gated behind `ECWID_E2E=1`.
 
 ### Dependencies
 
-- **API client (`ecwid/`)**: Go stdlib ONLY. Zero external dependencies.
-- **CLI (`cmd/ecwid/`)**: `github.com/spf13/cobra` + `github.com/spf13/viper` for config.
-- **Tests**: stdlib `testing` package only. No testify, no gomock.
+- **config module**: stdlib ONLY. Zero external dependencies.
+- **ecwid module**: stdlib + config. Zero other external dependencies.
+- **cli module**: config + ecwid + `github.com/spf13/cobra`.
+- **Tests**: stdlib `testing` package only.
 
 ## Git Workflow
 
@@ -181,7 +157,7 @@ chore: add golangci-lint config
 ```
 
 Scopes: `products`, `orders`, `categories`, `customers`, `carts`, `subscriptions`,
-`discounts`, `profile`, `reviews`, `staff`, `domains`, `dictionaries`, `cli`, `e2e`
+`discounts`, `profile`, `reviews`, `staff`, `domains`, `dictionaries`, `cli`, `config`, `e2e`
 
 ### Branches
 
@@ -205,37 +181,35 @@ chore/pre-commit-setup
 ### Pre-commit Hooks
 
 Mandatory before push:
-1. `golangci-lint run`
-2. `go test ./...`
+1. `golangci-lint run` (all modules)
+2. `go test ./config/... ./ecwid/...` with `-race`
 
 Configured via `.pre-commit-config.yaml`. Install with `pre-commit install`.
 
 ## Rate Limiting
 
-Ecwid enforces **600 req/min per token**. The client should:
-- Parse `Retry-After` header on 429 responses.
-- Return a typed `RateLimitError` so callers can handle it.
-- NOT auto-retry — let the caller decide.
+Ecwid enforces **600 req/min per token**. The client:
+- Parses `Retry-After` header on 429 responses.
+- Returns `*RateLimitError` so callers can handle it.
+- Optionally auto-retries if `MaxRetries > 0` in config.
 
 ## API Coverage
 
 Base URL: `https://app.ecwid.com/api/v3/{storeId}`
 
-### Domain → Service mapping
-
 | Domain | Service | Endpoints |
 |--------|---------|-----------|
-| Store Profile | `ProfileService` | `/profile`, `/profile/staffScopes`, `/profile/order_statuses`, `/profile/extrafields`, logos, shipping/payment options |
-| Orders | `OrderService` | `/orders`, `/orders/{id}`, `/orders/last`, `/orders/deleted`, extra fields, invoices, calculate |
-| Abandoned Carts | `CartService` | `/carts`, `/carts/{id}`, `/carts/{id}/place` |
+| Store Profile | `ProfileService` | `/profile`, staffScopes, order_statuses, extrafields, logos, shipping/payment options |
+| Orders | `OrderService` | `/orders`, `/orders/{id}`, last, deleted, extra fields, invoices, calculate |
+| Abandoned Carts | `CartService` | `/carts`, `/carts/{id}`, place |
 | Subscriptions | `SubscriptionService` | `/subscriptions`, `/subscriptions/{id}` |
-| Products | `ProductService` | `/products`, variations, inventory, images, gallery, files, sort, filters |
-| Product Reviews | `ReviewService` | `/reviews`, `/reviews/filters_data`, `/reviews/deleted`, mass update |
-| Categories | `CategoryService` | `/categories`, `/categoriesByPath`, sort, images, assign/unassign products |
+| Products | `ProductService` | `/products`, variations, inventory, images, gallery, files, sort, filters, brands, classes, swatches |
+| Product Reviews | `ReviewService` | `/reviews`, filters_data, deleted, mass_update |
+| Categories | `CategoryService` | `/categories`, byPath, sort, images, assign/unassign products |
 | Customers | `CustomerService` | `/customers`, contacts, extra fields, customer groups, deleted |
 | Promotions | `PromotionService` | `/promotions`, `/promotions/{id}` |
-| Discount Coupons | `CouponService` | `/discount_coupons`, `/discount_coupons/{id}`, `/coupons/deleted` |
-| Domains | `DomainService` | `/domains`, search, purchase, verification email, reset password |
+| Discount Coupons | `CouponService` | `/discount_coupons`, `/discount_coupons/{id}`, deleted |
+| Domains | `DomainService` | `/domains`, search, purchase, verification, reset password |
 | Dictionaries | `DictionaryService` | `/countries`, `/currencies`, `/currencyByCountry`, `/states`, `/taxClasses` |
 | Staff | `StaffService` | `/staff`, `/staff/{id}` |
 | Reports | `ReportService` | `/reports/{type}`, `/latest-stats` |
@@ -265,11 +239,12 @@ store_id: "12345"
 token: "secret_abc"
 output: json
 log_level: info
+max_retries: 3
 ```
 
 ## Security
 
 - **NEVER** log tokens, API keys, or credentials at any log level.
 - **NEVER** include credentials in error messages.
-- Config file should warn about permissions (0600 recommended).
-- Redact `Authorization` header in any debug output.
+- Use `config.RedactedToken()` for any diagnostic output.
+- Config file should have 0600 permissions.

@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.1.6
+    hooks:
+      - id: golangci-lint-full
+        args: ['./config/...', './ecwid/...', './cli/...']
+
+  - repo: local
+    hooks:
+      - id: go-test
+        name: go test
+        entry: go test ./config/... ./ecwid/... -race -count=1
+        language: system
+        pass_filenames: false
+        types: [go]

@@ -1,0 +1,41 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: Run golangci-lint across all modules
+    cmds:
+      - golangci-lint run ./config/...
+      - golangci-lint run ./ecwid/...
+      - golangci-lint run ./cli/...
+
+  test:
+    desc: Run unit tests across all modules
+    cmds:
+      - go test ./config/... ./ecwid/... -race -count=1
+
+  e2e:
+    desc: Run E2E tests against a real Ecwid store
+    env:
+      ECWID_E2E: '1'
+    cmds:
+      - go test ./e2e/... -race -count=1 -v
+
+  build:
+    desc: Build the CLI binary
+    cmds:
+      - go build -o ./bin/ecwid -ldflags "-X main.version={{.VERSION}}" ./cli/
+    vars:
+      VERSION:
+        sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+
+  all:
+    desc: Run lint, test, and build
+    cmds:
+      - task: lint
+      - task: test
+      - task: build
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf ./bin

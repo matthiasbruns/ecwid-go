@@ -1,0 +1,4 @@
+{
+  "errorCode": "RESOURCE_NOT_FOUND",
+  "errorMessage": "Product with id 999999 not found"
+}
