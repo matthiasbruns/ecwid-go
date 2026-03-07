@@ -8,8 +8,12 @@
 package e2e
 
 import (
+	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/matthiasbruns/ecwid-go/config"
 	"github.com/matthiasbruns/ecwid-go/ecwid"
@@ -17,9 +21,19 @@ import (
 
 var testClient *ecwid.Client
 
+// defaultTimeout is the per-request timeout for E2E tests.
+const defaultTimeout = 30 * time.Second
+
+// testContext returns a context with the default E2E timeout.
+func testContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	t.Cleanup(cancel)
+	return ctx
+}
+
 func TestMain(m *testing.M) {
 	if os.Getenv("ECWID_E2E") != "1" {
-		// Skip all E2E tests when not explicitly enabled.
 		os.Exit(0)
 	}
 
@@ -31,10 +45,13 @@ func TestMain(m *testing.M) {
 	cfg = cfg.WithDefaults()
 
 	if err := cfg.Validate(); err != nil {
-		panic("E2E config invalid: " + err.Error())
+		fmt.Fprintf(os.Stderr, "E2E config invalid: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Required: ECWID_STORE_ID and ECWID_TOKEN environment variables\n")
+		os.Exit(1)
 	}
 
-	testClient = ecwid.NewClient(cfg)
+	httpClient := &http.Client{Timeout: 60 * time.Second}
+	testClient = ecwid.NewClient(cfg, ecwid.WithHTTPClient(httpClient))
 
 	os.Exit(m.Run())
 }

@@ -1,14 +1,13 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
 	"github.com/matthiasbruns/ecwid-go/ecwid/reports"
 )
 
 func TestReports_GetReport(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	report, err := testClient.Reports.GetReport(ctx, "allOrders", &reports.ReportOptions{
 		TimeScaleValue: "month",
@@ -22,7 +21,7 @@ func TestReports_GetReport(t *testing.T) {
 }
 
 func TestReports_LatestStats(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	stats, err := testClient.Reports.LatestStats(ctx, &reports.LatestStatsOptions{
 		ProductCountRequired:  true,
@@ -31,7 +30,5 @@ func TestReports_LatestStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LatestStats: %v", err)
 	}
-	// Just verify we got a response without error.
-	// Timestamps may be empty for new stores.
 	_ = stats
 }

@@ -8,10 +8,10 @@ All tests require `ECWID_E2E=1` — they are skipped entirely otherwise.
 
 ## Secrets needed
 
-| Variable | Description |
-|----------|-------------|
-| `ECWID_STORE_ID` | Ecwid store ID |
-| `ECWID_TOKEN` | API access token with full scopes |
+| Variable         | Description                        |
+|------------------|------------------------------------|
+| `ECWID_STORE_ID` | Ecwid store ID                     |
+| `ECWID_TOKEN`    | API access token with full scopes  |
 
 ## Rules
 
@@ -20,6 +20,7 @@ All tests require `ECWID_E2E=1` — they are skipped entirely otherwise.
 - **One file per domain**: `dictionaries_test.go`, `reports_test.go`, etc.
 - **Read-only tests first**: dictionaries, reports don't mutate state.
 - **CRUD tests**: create test data with unique names, clean up in `t.Cleanup`.
+- **Timeouts**: use `testContext(t)` helper (30s per request). HTTP client has 60s timeout.
 
 ## Adding tests for new domains
 

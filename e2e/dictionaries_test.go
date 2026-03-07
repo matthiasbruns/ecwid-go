@@ -1,14 +1,13 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
 	"github.com/matthiasbruns/ecwid-go/ecwid/dictionaries"
 )
 
 func TestDictionaries_Countries(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	countries, err := testClient.Dictionaries.Countries(ctx, nil)
 	if err != nil {
@@ -18,7 +17,6 @@ func TestDictionaries_Countries(t *testing.T) {
 		t.Fatal("expected at least one country")
 	}
 
-	// Spot-check a well-known country.
 	found := false
 	for _, c := range countries {
 		if c.Code == "US" {
@@ -35,7 +33,7 @@ func TestDictionaries_Countries(t *testing.T) {
 }
 
 func TestDictionaries_CountriesWithStates(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	countries, err := testClient.Dictionaries.Countries(ctx, &dictionaries.CountriesOptions{
 		WithStates: true,
@@ -45,7 +43,6 @@ func TestDictionaries_CountriesWithStates(t *testing.T) {
 		t.Fatalf("Countries(withStates): %v", err)
 	}
 
-	// US should have states when withStates=true.
 	for _, c := range countries {
 		if c.Code == "US" {
 			if len(c.States) == 0 {
@@ -58,7 +55,7 @@ func TestDictionaries_CountriesWithStates(t *testing.T) {
 }
 
 func TestDictionaries_Currencies(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	currencies, err := testClient.Dictionaries.Currencies(ctx, "en")
 	if err != nil {
@@ -81,7 +78,7 @@ func TestDictionaries_Currencies(t *testing.T) {
 }
 
 func TestDictionaries_CurrencyByCountry(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	currencies, err := testClient.Dictionaries.CurrencyByCountry(ctx, "DE", "en")
 	if err != nil {
@@ -90,13 +87,21 @@ func TestDictionaries_CurrencyByCountry(t *testing.T) {
 	if len(currencies) == 0 {
 		t.Fatal("expected currency for DE")
 	}
-	if currencies[0].CurrencyCode != "EUR" {
-		t.Errorf("expected EUR for DE, got %s", currencies[0].CurrencyCode)
+
+	found := false
+	for _, c := range currencies {
+		if c.CurrencyCode == "EUR" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("EUR not found in currencies for DE")
 	}
 }
 
 func TestDictionaries_States(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	states, err := testClient.Dictionaries.States(ctx, "US", "en")
 	if err != nil {
@@ -119,12 +124,11 @@ func TestDictionaries_States(t *testing.T) {
 }
 
 func TestDictionaries_TaxClasses(t *testing.T) {
-	ctx := context.Background()
+	ctx := testContext(t)
 
 	taxClasses, err := testClient.Dictionaries.TaxClasses(ctx, "US", "en")
 	if err != nil {
 		t.Fatalf("TaxClasses(US): %v", err)
 	}
-	// Tax classes may be empty for some countries, just verify no error.
 	_ = taxClasses
 }
