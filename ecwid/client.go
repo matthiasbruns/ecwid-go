@@ -1,6 +1,7 @@
 package ecwid
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -9,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -167,11 +167,13 @@ func (c *Client) do(req *http.Request, v any) error {
 		return c.handleErrorResponse(resp.StatusCode, resp.Header, reader)
 	}
 
-	// Decode successful response.
+	// Decode successful response or drain body for connection reuse.
 	if v != nil {
 		if err := json.NewDecoder(reader).Decode(v); err != nil {
 			return fmt.Errorf("decode response: %w", err)
 		}
+	} else {
+		_, _ = io.Copy(io.Discard, reader)
 	}
 
 	return nil
@@ -196,9 +198,7 @@ func (c *Client) handleErrorResponse(statusCode int, header http.Header, body io
 	if statusCode == http.StatusTooManyRequests {
 		rlErr := &RateLimitError{APIError: *apiErr}
 		if after := header.Get("Retry-After"); after != "" {
-			if secs, err := strconv.Atoi(after); err == nil {
-				rlErr.RetryAfter = time.Duration(secs) * time.Second
-			}
+			rlErr.RetryAfter = parseRetryAfter(after)
 		}
 		return rlErr
 	}
@@ -228,7 +228,7 @@ func (c *Client) post(ctx context.Context, path string, body, v any) error {
 		if err != nil {
 			return fmt.Errorf("marshal request body: %w", err)
 		}
-		reader = strings.NewReader(string(data))
+		reader = bytes.NewReader(data)
 	}
 
 	req, err := c.request(ctx, http.MethodPost, path, reader)
@@ -247,7 +247,7 @@ func (c *Client) put(ctx context.Context, path string, body, v any) error {
 		if err != nil {
 			return fmt.Errorf("marshal request body: %w", err)
 		}
-		reader = strings.NewReader(string(data))
+		reader = bytes.NewReader(data)
 	}
 
 	req, err := c.request(ctx, http.MethodPut, path, reader)

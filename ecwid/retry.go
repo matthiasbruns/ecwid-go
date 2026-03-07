@@ -9,6 +9,11 @@ import (
 
 // retryTransport wraps an [http.RoundTripper] to retry requests that receive a 429 response.
 // It respects the Retry-After header from the Ecwid API.
+//
+// Note: retries reuse the same *http.Request. For requests with bodies (POST/PUT),
+// the body may already be consumed after the first attempt. This is acceptable for
+// Ecwid's rate limiting (429 is returned before body consumption), but callers
+// needing reliable POST/PUT retries should handle retry logic at a higher level.
 type retryTransport struct {
 	base       http.RoundTripper
 	maxRetries int
@@ -43,7 +48,11 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return resp, nil
 		}
 
-		t.logger.Warn("rate limited, retrying",
+		logger := t.logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Warn("rate limited, retrying",
 			"attempt", attempt+1,
 			"max_retries", t.maxRetries,
 			"retry_after", wait,
