@@ -110,6 +110,24 @@ func TestHTTPClient_NilBody(t *testing.T) {
 	}
 }
 
+func TestHTTPClient_204NoContent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := NewHTTPClient(HTTPClientConfig{
+		BaseURL: srv.URL + "/api/v3",
+		StoreID: "123",
+		Token:   "test_token",
+	})
+
+	var result struct{ ID int }
+	if err := c.Delete(context.Background(), "/test", &result); err != nil {
+		t.Fatalf("204 with non-nil v should not error, got: %v", err)
+	}
+}
+
 func TestHTTPClient_Retries(t *testing.T) {
 	attempts := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

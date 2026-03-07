@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -171,7 +172,7 @@ func (c *HTTPClient) do(req *http.Request, v any) error {
 	}
 
 	if v != nil {
-		if err := json.NewDecoder(reader).Decode(v); err != nil {
+		if err := json.NewDecoder(reader).Decode(v); err != nil && !errors.Is(err, io.EOF) {
 			return fmt.Errorf("decode response: %w", err)
 		}
 	} else {
