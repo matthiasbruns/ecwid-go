@@ -1,0 +1,16 @@
+# Storefront widget details
+
+- [Get page slug and static code](/api-reference/rest-api/storefront-widget-details/get-page-slug-and-static-code.md)
+- [Set base URL for storefront widgets](/api-reference/rest-api/storefront-widget-details/set-base-url-for-storefront-widgets.md)
+- [Optimize custom website SEO with better URLs](/api-reference/rest-api/storefront-widget-details/optimize-custom-website-seo-with-better-urls.md)
+- [Enable Clean Store URLs on a custom website](/api-reference/rest-api/storefront-widget-details/optimize-custom-website-seo-with-better-urls/enable-clean-store-urls-on-a-custom-website.md)
+- [Set Custom Page Slugs on a custom website](/api-reference/rest-api/storefront-widget-details/optimize-custom-website-seo-with-better-urls/set-custom-page-slugs-on-a-custom-website.md)
+- [Dynamic loading for storefront widget](/api-reference/rest-api/storefront-widget-details/dynamic-loading-for-storefront-widget.md)
+- [SSO (Single-Sign-On) for websites](/api-reference/rest-api/storefront-widget-details/sso-single-sign-on-for-websites.md)
+- [Add SSO to the website](/api-reference/rest-api/storefront-widget-details/sso-single-sign-on-for-websites/add-sso-to-the-website.md)
+- [Customize SSO on the website](/api-reference/rest-api/storefront-widget-details/sso-single-sign-on-for-websites/customize-sso-on-the-website.md)
+- [SSO code examples](/api-reference/rest-api/storefront-widget-details/sso-single-sign-on-for-websites/sso-code-examples.md)
+- [Static store pages](/api-reference/rest-api/storefront-widget-details/static-store-pages.md)
+- [Static code for home page](/api-reference/rest-api/storefront-widget-details/static-store-pages/static-code-for-home-page.md)
+- [Static code for category page](/api-reference/rest-api/storefront-widget-details/static-store-pages/static-code-for-category-page.md)
+- [Static code for product page](/api-reference/rest-api/storefront-widget-details/static-store-pages/static-code-for-product-page.md)
