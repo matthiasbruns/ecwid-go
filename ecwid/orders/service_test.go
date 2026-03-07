@@ -446,7 +446,7 @@ func TestUpdateExtraField(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.UpdateExtraField(context.Background(), "100", "field1", &orders.ExtraField{
+	result, err := svc.UpdateExtraField(context.Background(), "100", "field1", &orders.UpdateExtraFieldRequest{
 		Value: "updated_value",
 		Title: "Updated Field",
 	})

@@ -336,6 +336,17 @@ type ExtraField struct {
 	ShowInInvoice              *bool  `json:"showInInvoice,omitempty"`
 }
 
+// UpdateExtraFieldRequest holds fields for updating an order extra field.
+// All fields are optional to support partial updates.
+type UpdateExtraFieldRequest struct {
+	Value                      string `json:"value,omitempty"`
+	Title                      string `json:"title,omitempty"`
+	OrderDetailsDisplaySection string `json:"orderDetailsDisplaySection,omitempty"`
+	OrderBy                    string `json:"orderBy,omitempty"`
+	ShowInNotifications        *bool  `json:"showInNotifications,omitempty"`
+	ShowInInvoice              *bool  `json:"showInInvoice,omitempty"`
+}
+
 // CreateExtraFieldResult represents the response from creating an extra field.
 type CreateExtraFieldResult struct {
 	CreateCount int `json:"createCount"`

@@ -313,7 +313,7 @@ func (s *Service) CreateExtraField(ctx context.Context, orderID string, field *E
 //
 // API: PUT /orders/{orderId}/extraFields/{extraFieldId}
 // Required scope: update_orders
-func (s *Service) UpdateExtraField(ctx context.Context, orderID, extraFieldID string, field *ExtraField) (*UpdateResult, error) {
+func (s *Service) UpdateExtraField(ctx context.Context, orderID, extraFieldID string, field *UpdateExtraFieldRequest) (*UpdateResult, error) {
 	if orderID == "" {
 		return nil, errors.New("orderID must not be empty")
 	}
