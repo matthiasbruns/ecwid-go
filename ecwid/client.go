@@ -12,15 +12,19 @@ import (
 	"net/http"
 
 	"github.com/matthiasbruns/ecwid-go/config"
+	"github.com/matthiasbruns/ecwid-go/ecwid/carts"
 	"github.com/matthiasbruns/ecwid-go/ecwid/dictionaries"
 	"github.com/matthiasbruns/ecwid-go/ecwid/internal/api"
 	"github.com/matthiasbruns/ecwid-go/ecwid/reports"
+	"github.com/matthiasbruns/ecwid-go/ecwid/subscriptions"
 )
 
 // Client is the Ecwid API client. It is safe for concurrent use.
 type Client struct {
-	Dictionaries *dictionaries.Service
-	Reports      *reports.Service
+	Carts         *carts.Service
+	Dictionaries  *dictionaries.Service
+	Reports       *reports.Service
+	Subscriptions *subscriptions.Service
 }
 
 // options holds optional configuration for the Client.
@@ -72,7 +76,9 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	})
 
 	return &Client{
-		Dictionaries: dictionaries.NewService(requester),
-		Reports:      reports.NewService(requester),
+		Carts:         carts.NewService(requester),
+		Dictionaries:  dictionaries.NewService(requester),
+		Reports:       reports.NewService(requester),
+		Subscriptions: subscriptions.NewService(requester),
 	}
 }
