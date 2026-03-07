@@ -14,8 +14,10 @@ import (
 	"github.com/matthiasbruns/ecwid-go/config"
 	"github.com/matthiasbruns/ecwid-go/ecwid/carts"
 	"github.com/matthiasbruns/ecwid-go/ecwid/dictionaries"
+	"github.com/matthiasbruns/ecwid-go/ecwid/domains"
 	"github.com/matthiasbruns/ecwid-go/ecwid/internal/api"
 	"github.com/matthiasbruns/ecwid-go/ecwid/reports"
+	"github.com/matthiasbruns/ecwid-go/ecwid/staff"
 	"github.com/matthiasbruns/ecwid-go/ecwid/subscriptions"
 )
 
@@ -23,7 +25,9 @@ import (
 type Client struct {
 	Carts         *carts.Service
 	Dictionaries  *dictionaries.Service
+	Domains       *domains.Service
 	Reports       *reports.Service
+	Staff         *staff.Service
 	Subscriptions *subscriptions.Service
 }
 
@@ -78,7 +82,9 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	return &Client{
 		Carts:         carts.NewService(requester),
 		Dictionaries:  dictionaries.NewService(requester),
+		Domains:       domains.NewService(requester),
 		Reports:       reports.NewService(requester),
+		Staff:         staff.NewService(requester),
 		Subscriptions: subscriptions.NewService(requester),
 	}
 }
