@@ -90,7 +90,7 @@ type Order struct {
 	RefererURL    string          `json:"refererUrl,omitempty"`
 	GlobalReferer string          `json:"globalReferer,omitempty"`
 	AffiliateID   string          `json:"affiliateId,omitempty"`
-	RefererId     int64           `json:"refererId,omitempty"`
+	RefererID     string          `json:"refererId,omitempty"`
 	IPAddress     string          `json:"ipAddress,omitempty"`
 	UtmData       json.RawMessage `json:"utmData,omitempty"`
 	UtmDataSets   json.RawMessage `json:"utmDataSets,omitempty"`
@@ -146,7 +146,7 @@ type SearchOptions struct {
 	ContainsPreorderItems *bool
 	CouponCode            string
 	SubscriptionID        int64
-	RefererId             int64
+	RefererID             int64
 	ResponseFields        string
 	Offset                int
 	Limit                 int
@@ -184,7 +184,7 @@ type CreateRequest struct {
 	IPAddress          string  `json:"ipAddress,omitempty"`
 	RefererURL         string  `json:"refererUrl,omitempty"`
 	GlobalReferer      string  `json:"globalReferer,omitempty"`
-	RefererId          int64   `json:"refererId,omitempty"`
+	RefererID          string  `json:"refererId,omitempty"`
 	OrderComments      string  `json:"orderComments,omitempty"`
 	PrivateAdminNotes  string  `json:"privateAdminNotes,omitempty"`
 	TrackingNumber     string  `json:"trackingNumber,omitempty"`
@@ -245,7 +245,7 @@ type UpdateRequest struct {
 	IPAddress          string   `json:"ipAddress,omitempty"`
 	RefererURL         string   `json:"refererUrl,omitempty"`
 	GlobalReferer      string   `json:"globalReferer,omitempty"`
-	RefererId          int64    `json:"refererId,omitempty"`
+	RefererID          string   `json:"refererId,omitempty"`
 	OrderComments      string   `json:"orderComments,omitempty"`
 	PrivateAdminNotes  string   `json:"privateAdminNotes,omitempty"`
 	TrackingNumber     string   `json:"trackingNumber,omitempty"`

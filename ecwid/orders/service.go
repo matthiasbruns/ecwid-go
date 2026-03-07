@@ -92,8 +92,8 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.SubscriptionID > 0 {
 			q.Set("subscriptionId", fmt.Sprintf("%d", opts.SubscriptionID))
 		}
-		if opts.RefererId > 0 {
-			q.Set("refererId", fmt.Sprintf("%d", opts.RefererId))
+		if opts.RefererID > 0 {
+			q.Set("refererId", fmt.Sprintf("%d", opts.RefererID))
 		}
 		if opts.ResponseFields != "" {
 			q.Set("responseFields", opts.ResponseFields)
