@@ -2,6 +2,7 @@ package subscriptions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -40,11 +41,11 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.UpdatedTo != "" {
 			q.Set("updatedTo", opts.UpdatedTo)
 		}
-		if opts.ChargeFrom != "" {
-			q.Set("chargeFrom", opts.ChargeFrom)
+		if opts.NextChargeFrom != "" {
+			q.Set("nextChargeFrom", opts.NextChargeFrom)
 		}
-		if opts.ChargeTo != "" {
-			q.Set("chargeTo", opts.ChargeTo)
+		if opts.NextChargeTo != "" {
+			q.Set("nextChargeTo", opts.NextChargeTo)
 		}
 		if opts.CancelledFrom != "" {
 			q.Set("cancelledFrom", opts.CancelledFrom)
@@ -84,6 +85,10 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 // API: GET /subscriptions/{subscriptionId}
 // Required scope: read_subscriptions
 func (s *Service) Get(ctx context.Context, subscriptionID int64) (*Subscription, error) {
+	if subscriptionID == 0 {
+		return nil, errors.New("subscriptionID must not be zero")
+	}
+
 	path := fmt.Sprintf("/subscriptions/%d", subscriptionID)
 
 	var result Subscription
@@ -98,6 +103,10 @@ func (s *Service) Get(ctx context.Context, subscriptionID int64) (*Subscription,
 // API: PUT /subscriptions/{subscriptionId}
 // Required scope: update_subscriptions
 func (s *Service) Update(ctx context.Context, subscriptionID int64, req *UpdateRequest) (*UpdateResult, error) {
+	if subscriptionID == 0 {
+		return nil, errors.New("subscriptionID must not be zero")
+	}
+
 	path := fmt.Sprintf("/subscriptions/%d", subscriptionID)
 
 	var result UpdateResult

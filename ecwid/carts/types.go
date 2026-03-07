@@ -66,5 +66,8 @@ type UpdateResult struct {
 
 // PlaceResult represents the response from converting a cart to an order.
 type PlaceResult struct {
-	OrderNumber int64 `json:"orderNumber"`
+	ID                string `json:"id"`
+	OrderNumber       int64  `json:"orderNumber"`
+	VendorOrderNumber string `json:"vendorOrderNumber"`
+	CartID            string `json:"cartId"`
 }

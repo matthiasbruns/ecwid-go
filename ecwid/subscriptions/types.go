@@ -55,8 +55,8 @@ type SearchOptions struct {
 	CreatedTo         string
 	UpdatedFrom       string
 	UpdatedTo         string
-	ChargeFrom        string
-	ChargeTo          string
+	NextChargeFrom    string
+	NextChargeTo      string
 	CancelledFrom     string
 	CancelledTo       string
 	CustomerID        int64
