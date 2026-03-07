@@ -1,0 +1,26 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: Run golangci-lint on cli module
+    dir: '{{.TASKFILE_DIR}}'
+    cmds:
+      - golangci-lint run ./...
+
+  lint:fix:
+    desc: Run golangci-lint with auto-fix on cli module
+    dir: '{{.TASKFILE_DIR}}'
+    cmds:
+      - golangci-lint run --fix ./...
+
+  test:
+    desc: Run tests for cli module
+    dir: '{{.TASKFILE_DIR}}'
+    cmds:
+      - go test ./... -race -count=1
+
+  tidy:
+    desc: Run go mod tidy for cli module
+    dir: '{{.TASKFILE_DIR}}'
+    cmds:
+      - go mod tidy
