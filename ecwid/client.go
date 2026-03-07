@@ -16,10 +16,12 @@ import (
 	"github.com/matthiasbruns/ecwid-go/ecwid/categories"
 	"github.com/matthiasbruns/ecwid-go/ecwid/customers"
 	"github.com/matthiasbruns/ecwid-go/ecwid/dictionaries"
+	"github.com/matthiasbruns/ecwid-go/ecwid/discounts"
 	"github.com/matthiasbruns/ecwid-go/ecwid/domains"
 	"github.com/matthiasbruns/ecwid-go/ecwid/internal/api"
 	"github.com/matthiasbruns/ecwid-go/ecwid/profile"
 	"github.com/matthiasbruns/ecwid-go/ecwid/reports"
+	"github.com/matthiasbruns/ecwid-go/ecwid/reviews"
 	"github.com/matthiasbruns/ecwid-go/ecwid/staff"
 	"github.com/matthiasbruns/ecwid-go/ecwid/subscriptions"
 )
@@ -30,9 +32,11 @@ type Client struct {
 	Categories    *categories.Service
 	Customers     *customers.Service
 	Dictionaries  *dictionaries.Service
+	Discounts     *discounts.Service
 	Domains       *domains.Service
 	Profile       *profile.Service
 	Reports       *reports.Service
+	Reviews       *reviews.Service
 	Staff         *staff.Service
 	Subscriptions *subscriptions.Service
 }
@@ -90,9 +94,11 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 		Categories:    categories.NewService(requester),
 		Customers:     customers.NewService(requester),
 		Dictionaries:  dictionaries.NewService(requester),
+		Discounts:     discounts.NewService(requester),
 		Domains:       domains.NewService(requester),
 		Profile:       profile.NewService(requester),
 		Reports:       reports.NewService(requester),
+		Reviews:       reviews.NewService(requester),
 		Staff:         staff.NewService(requester),
 		Subscriptions: subscriptions.NewService(requester),
 	}
