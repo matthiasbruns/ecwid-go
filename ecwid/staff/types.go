@@ -1,34 +1,42 @@
-// Package staff provides access to the Ecwid staff members API.
+// Package staff provides access to the Ecwid staff accounts API.
 package staff
 
-// StaffMember represents a staff member in Ecwid.
-type StaffMember struct {
-	ID          int64       `json:"id,omitempty"`
-	Email       string      `json:"email,omitempty"`
-	FirstName   string      `json:"firstName,omitempty"`
-	LastName    string      `json:"lastName,omitempty"`
-	Role        string      `json:"role,omitempty"`
-	Permissions Permissions `json:"permissions,omitempty"`
+// StaffAccount represents a staff account in Ecwid.
+type StaffAccount struct {
+	ID             string   `json:"id,omitempty"`
+	Name           string   `json:"name,omitempty"`
+	Email          string   `json:"email,omitempty"`
+	StaffScopes    []string `json:"staffScopes,omitempty"`
+	InviteAccepted bool     `json:"inviteAccepted,omitempty"`
 }
 
-// Permissions describes a staff member's access levels.
-type Permissions struct {
-	CanManageOrders    bool `json:"canManageOrders,omitempty"`
-	CanManageProducts  bool `json:"canManageProducts,omitempty"`
-	CanManageCustomers bool `json:"canManageCustomers,omitempty"`
-	CanViewReports     bool `json:"canViewReports,omitempty"`
-	CanManageSettings  bool `json:"canManageSettings,omitempty"`
-}
-
-// ListResult is the paginated response from the staff list API.
+// ListResult is the response from the staff search API.
 type ListResult struct {
-	Total int           `json:"total"`
-	Items []StaffMember `json:"items"`
+	StaffList []StaffAccount `json:"staffList"`
 }
 
-// CreateResult represents the response from creating a staff member.
+// GetResult is the response from getting a single staff account.
+// Note: Get returns only email and staffScopes, not the full StaffAccount.
+type GetResult struct {
+	Email       string   `json:"email,omitempty"`
+	StaffScopes []string `json:"staffScopes,omitempty"`
+}
+
+// CreateRequest holds fields for creating (inviting) a staff account.
+type CreateRequest struct {
+	Email       string   `json:"email"`
+	StaffScopes []string `json:"staffScopes,omitempty"`
+}
+
+// CreateResult represents the response from creating a staff account.
 type CreateResult struct {
-	ID int64 `json:"id"`
+	Success bool `json:"success"`
+}
+
+// UpdateRequest holds fields for updating a staff account.
+type UpdateRequest struct {
+	Email       string   `json:"email,omitempty"`
+	StaffScopes []string `json:"staffScopes,omitempty"`
 }
 
 // UpdateResult represents the response from an update operation.

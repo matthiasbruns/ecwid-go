@@ -1,44 +1,52 @@
-// Package domains provides access to the Ecwid store domain settings API.
+// Package domains provides access to the Ecwid store domains API.
 package domains
 
-// DomainSettings represents the store domain configuration.
-type DomainSettings struct {
-	CustomDomain        string `json:"customDomain,omitempty"`
-	RegisteredDomain    string `json:"registeredDomain,omitempty"`
-	SSLEnabled          bool   `json:"sslEnabled,omitempty"`
-	RedirectToCanonical bool   `json:"redirectToCanonical,omitempty"`
-	StoreFrontURL       string `json:"storeFrontUrl,omitempty"`
+// DomainsResult is the response from the domains search API.
+type DomainsResult struct {
+	InstantSiteDomain *InstantSiteDomain `json:"instantSiteDomain,omitempty"`
+	PurchasedDomains  []PurchasedDomain  `json:"purchasedDomains,omitempty"`
 }
 
-// DomainTemplate represents an available domain template.
-type DomainTemplate struct {
-	Name        string `json:"name,omitempty"`
-	Price       string `json:"price,omitempty"`
-	Description string `json:"description,omitempty"`
+// InstantSiteDomain holds the Ecwid Instant Site domain details.
+type InstantSiteDomain struct {
+	PrimaryInstantSiteDomain       string `json:"primaryInstantSiteDomain,omitempty"`
+	PrimaryInstantSiteDomainStatus string `json:"primaryInstantSiteDomainStatus,omitempty"`
+	EcwidSubdomain                 string `json:"ecwidSubdomain,omitempty"`
+	InstantSiteIPAddress           string `json:"instantSiteIpAddress,omitempty"`
+	InstantSiteURL                 string `json:"instantSiteUrl,omitempty"`
 }
 
-// WhoisResult represents the result of a domain availability check.
-type WhoisResult struct {
-	Available bool   `json:"available"`
-	Domain    string `json:"domain,omitempty"`
+// PurchasedDomain represents a domain purchased through Ecwid.
+type PurchasedDomain struct {
+	ID                      int64  `json:"id"`
+	Name                    string `json:"name,omitempty"`
+	Status                  string `json:"status,omitempty"`
+	ConnectedToInstantSite  bool   `json:"connectedToInstantSite,omitempty"`
+	PrimaryDomain           bool   `json:"primaryDomain,omitempty"`
+	RedirectToPrimaryDomain bool   `json:"redirectToPrimaryDomain,omitempty"`
 }
 
-// PurchaseRequest holds fields for purchasing a domain.
+// PurchaseRequest holds contact info for purchasing a domain.
 type PurchaseRequest struct {
-	DomainName string `json:"domainName"`
+	DomainName          string `json:"domainName"`
+	FirstName           string `json:"firstName,omitempty"`
+	LastName            string `json:"lastName,omitempty"`
+	Email               string `json:"email,omitempty"`
+	Street              string `json:"street,omitempty"`
+	City                string `json:"city,omitempty"`
+	CountryCode         string `json:"countryCode,omitempty"`
+	PostalCode          string `json:"postalCode,omitempty"`
+	StateOrProvinceCode string `json:"stateOrProvinceCode,omitempty"`
+	Phone               string `json:"phone,omitempty"`
+	CompanyName         string `json:"companyName,omitempty"`
 }
 
-// PurchaseResult represents the response from a domain purchase.
+// PurchaseResult represents the response from purchasing a domain.
 type PurchaseResult struct {
-	Status string `json:"status,omitempty"`
-}
-
-// UpdateResult represents the response from an update operation.
-type UpdateResult struct {
-	UpdateCount int `json:"updateCount"`
-}
-
-// DeleteResult represents the response from a delete operation.
-type DeleteResult struct {
-	DeleteCount int `json:"deleteCount"`
+	ID                      int64  `json:"id"`
+	Name                    string `json:"name,omitempty"`
+	Status                  string `json:"status,omitempty"`
+	ConnectedToInstantSite  bool   `json:"connectedToInstantSite,omitempty"`
+	PrimaryDomain           bool   `json:"primaryDomain,omitempty"`
+	RedirectToPrimaryDomain bool   `json:"redirectToPrimaryDomain,omitempty"`
 }

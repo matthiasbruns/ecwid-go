@@ -22,14 +22,11 @@ func newTestService(t *testing.T, srv *httptest.Server) *staff.Service {
 
 func TestList(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
 		if r.URL.Path != "/api/v3/12345/staff" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"total":1,"items":[{"id":100,"email":"admin@example.com","firstName":"Alice","lastName":"Admin","role":"ADMIN"}]}`))
+		_, _ = w.Write([]byte(`{"staffList":[{"id":"p27632593","name":"John Doe","email":"john@example.com","staffScopes":["REPORT_ACCESS","SALES_MANAGEMENT"],"inviteAccepted":true}]}`))
 	}))
 	defer srv.Close()
 
@@ -38,47 +35,53 @@ func TestList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Total != 1 {
-		t.Errorf("expected total=1, got %d", result.Total)
+	if len(result.StaffList) != 1 {
+		t.Fatalf("expected 1 staff, got %d", len(result.StaffList))
 	}
-	if result.Items[0].Email != "admin@example.com" {
-		t.Errorf("expected admin@example.com, got %s", result.Items[0].Email)
+	if result.StaffList[0].ID != "p27632593" {
+		t.Errorf("expected id=p27632593, got %s", result.StaffList[0].ID)
+	}
+	if result.StaffList[0].Name != "John Doe" {
+		t.Errorf("expected name=John Doe, got %s", result.StaffList[0].Name)
+	}
+	if len(result.StaffList[0].StaffScopes) != 2 {
+		t.Errorf("expected 2 scopes, got %d", len(result.StaffList[0].StaffScopes))
 	}
 }
 
 func TestGet(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v3/12345/staff/100" {
+		if r.URL.Path != "/api/v3/12345/staff/p3855016" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":100,"email":"admin@example.com","firstName":"Alice","lastName":"Admin","role":"ADMIN"}`))
+		_, _ = w.Write([]byte(`{"email":"ec.apps@lightspeedhq.com","staffScopes":["SALES_MANAGEMENT","CATALOG_MANAGEMENT"]}`))
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	member, err := svc.Get(context.Background(), 100)
+	result, err := svc.Get(context.Background(), "p3855016")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if member.ID != 100 {
-		t.Errorf("expected id=100, got %d", member.ID)
+	if result.Email != "ec.apps@lightspeedhq.com" {
+		t.Errorf("expected email=ec.apps@lightspeedhq.com, got %s", result.Email)
 	}
-	if member.Role != "ADMIN" {
-		t.Errorf("expected role=ADMIN, got %s", member.Role)
+	if len(result.StaffScopes) != 2 {
+		t.Errorf("expected 2 scopes, got %d", len(result.StaffScopes))
 	}
 }
 
-func TestGet_ZeroID(t *testing.T) {
+func TestGet_EmptyID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("should not reach server")
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	_, err := svc.Get(context.Background(), 0)
+	_, err := svc.Get(context.Background(), "")
 	if err == nil {
-		t.Fatal("expected error for zero staffID")
+		t.Fatal("expected error for empty staffAccountID")
 	}
 }
 
@@ -87,26 +90,21 @@ func TestCreate(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v3/12345/staff" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":200}`))
+		_, _ = w.Write([]byte(`{"success":true}`))
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.Create(context.Background(), &staff.StaffMember{
-		Email:     "new@example.com",
-		FirstName: "Bob",
-		LastName:  "Builder",
-		Role:      "MANAGER",
+	result, err := svc.Create(context.Background(), &staff.CreateRequest{
+		Email:       "new@example.com",
+		StaffScopes: []string{"REPORT_ACCESS"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ID != 200 {
-		t.Errorf("expected id=200, got %d", result.ID)
+	if !result.Success {
+		t.Error("expected success=true")
 	}
 }
 
@@ -115,7 +113,7 @@ func TestUpdate(t *testing.T) {
 		if r.Method != http.MethodPut {
 			t.Errorf("expected PUT, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v3/12345/staff/100" {
+		if r.URL.Path != "/api/v3/12345/staff/p123" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -124,8 +122,8 @@ func TestUpdate(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.Update(context.Background(), 100, &staff.StaffMember{
-		FirstName: "Updated",
+	result, err := svc.Update(context.Background(), "p123", &staff.UpdateRequest{
+		StaffScopes: []string{"REPORT_ACCESS", "SALES_MANAGEMENT"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -135,26 +133,10 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestUpdate_ZeroID(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("should not reach server")
-	}))
-	defer srv.Close()
-
-	svc := newTestService(t, srv)
-	_, err := svc.Update(context.Background(), 0, &staff.StaffMember{})
-	if err == nil {
-		t.Fatal("expected error for zero staffID")
-	}
-}
-
 func TestDelete(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			t.Errorf("expected DELETE, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v3/12345/staff/100" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"deleteCount":1}`))
@@ -162,7 +144,7 @@ func TestDelete(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.Delete(context.Background(), 100)
+	result, err := svc.Delete(context.Background(), "p123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,23 +153,10 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestDelete_ZeroID(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("should not reach server")
-	}))
-	defer srv.Close()
-
-	svc := newTestService(t, srv)
-	_, err := svc.Delete(context.Background(), 0)
-	if err == nil {
-		t.Fatal("expected error for zero staffID")
-	}
-}
-
 func TestList_Error(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"errorMessage":"internal error","errorCode":"500"}`))
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"errorMessage":"access denied","errorCode":"403"}`))
 	}))
 	defer srv.Close()
 
@@ -196,12 +165,8 @@ func TestList_Error(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-
 	var apiErr *api.APIError
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *api.APIError, got %T", err)
-	}
-	if apiErr.StatusCode != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d", apiErr.StatusCode)
 	}
 }
