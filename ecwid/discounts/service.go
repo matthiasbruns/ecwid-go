@@ -21,29 +21,13 @@ func NewService(requester api.Requester) *Service {
 
 // --- Promotions ---
 
-// SearchPromotions returns a list of promotions (discount rules).
+// SearchPromotions returns a list of promotions.
 //
-// API: GET /discount_rules
+// API: GET /promotions
+// Required scope: read_promotion
 func (s *Service) SearchPromotions(ctx context.Context) (*PromotionSearchResult, error) {
 	var result PromotionSearchResult
-	if err := s.requester.Get(ctx, "/discount_rules", nil, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-// GetPromotion returns a single promotion by ID.
-//
-// API: GET /discount_rules/{ruleId}
-func (s *Service) GetPromotion(ctx context.Context, ruleID int64) (*Promotion, error) {
-	if ruleID == 0 {
-		return nil, errors.New("ruleID must not be zero")
-	}
-
-	path := fmt.Sprintf("/discount_rules/%d", ruleID)
-
-	var result Promotion
-	if err := s.requester.Get(ctx, path, nil, &result); err != nil {
+	if err := s.requester.Get(ctx, "/promotions", nil, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -51,10 +35,11 @@ func (s *Service) GetPromotion(ctx context.Context, ruleID int64) (*Promotion, e
 
 // CreatePromotion creates a new promotion.
 //
-// API: POST /discount_rules
+// API: POST /promotions
+// Required scope: create_promotion
 func (s *Service) CreatePromotion(ctx context.Context, promo *Promotion) (*CreateResult, error) {
 	var result CreateResult
-	if err := s.requester.Post(ctx, "/discount_rules", promo, &result); err != nil {
+	if err := s.requester.Post(ctx, "/promotions", promo, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -62,13 +47,14 @@ func (s *Service) CreatePromotion(ctx context.Context, promo *Promotion) (*Creat
 
 // UpdatePromotion updates an existing promotion.
 //
-// API: PUT /discount_rules/{ruleId}
-func (s *Service) UpdatePromotion(ctx context.Context, ruleID int64, promo *Promotion) (*UpdateResult, error) {
-	if ruleID == 0 {
-		return nil, errors.New("ruleID must not be zero")
+// API: PUT /promotions/{promotionId}
+// Required scope: update_promotion
+func (s *Service) UpdatePromotion(ctx context.Context, promotionID int64, promo *Promotion) (*UpdateResult, error) {
+	if promotionID == 0 {
+		return nil, errors.New("promotionID must not be zero")
 	}
 
-	path := fmt.Sprintf("/discount_rules/%d", ruleID)
+	path := fmt.Sprintf("/promotions/%d", promotionID)
 
 	var result UpdateResult
 	if err := s.requester.Put(ctx, path, promo, &result); err != nil {
@@ -79,13 +65,14 @@ func (s *Service) UpdatePromotion(ctx context.Context, ruleID int64, promo *Prom
 
 // DeletePromotion deletes a promotion.
 //
-// API: DELETE /discount_rules/{ruleId}
-func (s *Service) DeletePromotion(ctx context.Context, ruleID int64) (*DeleteResult, error) {
-	if ruleID == 0 {
-		return nil, errors.New("ruleID must not be zero")
+// API: DELETE /promotions/{promotionId}
+// Required scope: delete_promotion
+func (s *Service) DeletePromotion(ctx context.Context, promotionID int64) (*DeleteResult, error) {
+	if promotionID == 0 {
+		return nil, errors.New("promotionID must not be zero")
 	}
 
-	path := fmt.Sprintf("/discount_rules/%d", ruleID)
+	path := fmt.Sprintf("/promotions/%d", promotionID)
 
 	var result DeleteResult
 	if err := s.requester.Delete(ctx, path, &result); err != nil {
@@ -99,6 +86,7 @@ func (s *Service) DeletePromotion(ctx context.Context, ruleID int64) (*DeleteRes
 // SearchCoupons returns a paginated list of discount coupons.
 //
 // API: GET /discount_coupons
+// Required scope: read_discount_coupons
 func (s *Service) SearchCoupons(ctx context.Context, opts *CouponSearchOptions) (*CouponSearchResult, error) {
 	q := url.Values{}
 	if opts != nil {
@@ -110,6 +98,18 @@ func (s *Service) SearchCoupons(ctx context.Context, opts *CouponSearchOptions) 
 		}
 		if opts.Availability != "" {
 			q.Set("availability", opts.Availability)
+		}
+		if opts.CreatedFrom != "" {
+			q.Set("createdFrom", opts.CreatedFrom)
+		}
+		if opts.CreatedTo != "" {
+			q.Set("createdTo", opts.CreatedTo)
+		}
+		if opts.UpdatedFrom != "" {
+			q.Set("updatedFrom", opts.UpdatedFrom)
+		}
+		if opts.UpdatedTo != "" {
+			q.Set("updatedTo", opts.UpdatedTo)
 		}
 		if opts.Limit > 0 {
 			q.Set("limit", fmt.Sprintf("%d", opts.Limit))
@@ -129,6 +129,7 @@ func (s *Service) SearchCoupons(ctx context.Context, opts *CouponSearchOptions) 
 // GetCoupon returns a single coupon by ID.
 //
 // API: GET /discount_coupons/{couponId}
+// Required scope: read_discount_coupons
 func (s *Service) GetCoupon(ctx context.Context, couponID int64) (*Coupon, error) {
 	if couponID == 0 {
 		return nil, errors.New("couponID must not be zero")
@@ -146,6 +147,7 @@ func (s *Service) GetCoupon(ctx context.Context, couponID int64) (*Coupon, error
 // CreateCoupon creates a new discount coupon.
 //
 // API: POST /discount_coupons
+// Required scope: create_discount_coupons
 func (s *Service) CreateCoupon(ctx context.Context, coupon *Coupon) (*CreateResult, error) {
 	var result CreateResult
 	if err := s.requester.Post(ctx, "/discount_coupons", coupon, &result); err != nil {
@@ -157,6 +159,7 @@ func (s *Service) CreateCoupon(ctx context.Context, coupon *Coupon) (*CreateResu
 // UpdateCoupon updates an existing coupon.
 //
 // API: PUT /discount_coupons/{couponId}
+// Required scope: update_discount_coupons
 func (s *Service) UpdateCoupon(ctx context.Context, couponID int64, coupon *Coupon) (*UpdateResult, error) {
 	if couponID == 0 {
 		return nil, errors.New("couponID must not be zero")
@@ -174,6 +177,7 @@ func (s *Service) UpdateCoupon(ctx context.Context, couponID int64, coupon *Coup
 // DeleteCoupon deletes a discount coupon.
 //
 // API: DELETE /discount_coupons/{couponId}
+// Required scope: delete_discount_coupons
 func (s *Service) DeleteCoupon(ctx context.Context, couponID int64) (*DeleteResult, error) {
 	if couponID == 0 {
 		return nil, errors.New("couponID must not be zero")
