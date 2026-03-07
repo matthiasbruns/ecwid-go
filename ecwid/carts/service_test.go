@@ -90,7 +90,8 @@ func TestUpdate(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.Update(context.Background(), "abc123", &carts.UpdateRequest{Hidden: true})
+	hidden := true
+	result, err := svc.Update(context.Background(), "abc123", &carts.UpdateRequest{Hidden: &hidden})
 	if err != nil {
 		t.Fatal(err)
 	}

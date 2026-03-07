@@ -41,11 +41,11 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.CustomerID > 0 {
 			q.Set("customerId", fmt.Sprintf("%d", opts.CustomerID))
 		}
-		if opts.TotalFrom > 0 {
-			q.Set("totalFrom", fmt.Sprintf("%.2f", opts.TotalFrom))
+		if opts.TotalFrom != nil {
+			q.Set("totalFrom", fmt.Sprintf("%.2f", *opts.TotalFrom))
 		}
-		if opts.TotalTo > 0 {
-			q.Set("totalTo", fmt.Sprintf("%.2f", opts.TotalTo))
+		if opts.TotalTo != nil {
+			q.Set("totalTo", fmt.Sprintf("%.2f", *opts.TotalTo))
 		}
 		if opts.Offset > 0 {
 			q.Set("offset", fmt.Sprintf("%d", opts.Offset))

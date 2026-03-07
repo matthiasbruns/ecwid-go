@@ -48,15 +48,15 @@ type SearchOptions struct {
 	UpdatedFrom string
 	UpdatedTo   string
 	CustomerID  int64
-	TotalFrom   float64
-	TotalTo     float64
+	TotalFrom   *float64
+	TotalTo     *float64
 	Offset      int
 	Limit       int
 }
 
 // UpdateRequest holds fields for updating an abandoned cart.
 type UpdateRequest struct {
-	Hidden bool `json:"hidden,omitempty"`
+	Hidden *bool `json:"hidden,omitempty"`
 }
 
 // UpdateResult represents the response from an update operation.
