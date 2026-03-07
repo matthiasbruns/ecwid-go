@@ -359,3 +359,77 @@ func TestClient_DeleteRequest(t *testing.T) {
 		t.Errorf("Method = %q, want DELETE", gotMethod)
 	}
 }
+
+func TestClient_Retries429ThenSucceeds(t *testing.T) {
+	var attempts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write(loadFixture(t, "error_429.json"))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := NewClient(config.Config{
+		StoreID:    "12345",
+		Token:      "test-token",
+		BaseURL:    srv.URL,
+		MaxRetries: 1,
+	})
+
+	var result map[string]any
+	if err := c.get(context.Background(), "/products", nil, &result); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+}
+
+func TestClient_RetriesExhausted(t *testing.T) {
+	var attempts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.Header().Set("Retry-After", "0")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write(loadFixture(t, "error_429.json"))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := NewClient(config.Config{
+		StoreID:    "12345",
+		Token:      "test-token",
+		BaseURL:    srv.URL,
+		MaxRetries: 2,
+	})
+
+	var result map[string]any
+	err := c.get(context.Background(), "/products", nil, &result)
+
+	var rlErr *RateLimitError
+	if !errors.As(err, &rlErr) {
+		t.Fatalf("expected RateLimitError after retries exhausted, got %T: %v", err, err)
+	}
+	if attempts != 3 { // 1 initial + 2 retries
+		t.Fatalf("attempts = %d, want 3", attempts)
+	}
+}
+
+func TestClient_WithNilOptions(t *testing.T) {
+	// Should not panic with nil options.
+	c := NewClient(config.Config{StoreID: "1", Token: "t"},
+		WithHTTPClient(nil),
+		WithLogger(nil),
+	)
+	if c.httpClient == nil {
+		t.Error("httpClient should not be nil")
+	}
+	if c.logger == nil {
+		t.Error("logger should not be nil")
+	}
+}

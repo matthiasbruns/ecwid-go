@@ -45,7 +45,9 @@ go install github.com/matthiasbruns/ecwid-go/cli@latest
 
 ## Quick Start
 
-### Library Usage
+### Library Usage (planned — endpoints not yet implemented)
+
+> **Note:** The API service methods shown below are planned. The current bootstrap includes the client core, error types, and stub services. Endpoint implementations will follow in separate issues.
 
 ```go
 package main
@@ -68,7 +70,7 @@ func main() {
 
 	client := ecwid.NewClient(cfg)
 
-	// Search products
+	// Search products (planned)
 	resp, err := client.Products.Search(context.Background(), ecwid.SearchProductsRequest{
 		Keyword: "shirt",
 		Limit:   10,
@@ -83,26 +85,22 @@ func main() {
 }
 ```
 
-### CLI Usage
+### CLI Usage (planned — only `version` is implemented)
 
 ```bash
+# Currently available
+ecwid version
+
 # Set credentials via environment
 export ECWID_STORE_ID=12345
 export ECWID_TOKEN=secret_abc123
 
-# Or via config file (~/.ecwid.yaml)
-# Products
+# Planned commands (not yet implemented):
 ecwid products list --keyword "shirt" --limit 10
 ecwid products get 456789
-
-# Orders
 ecwid orders list --status PAID
 ecwid orders get 78901
-
-# Store profile
 ecwid profile get
-
-# Categories
 ecwid categories list --parent 0
 ```
 

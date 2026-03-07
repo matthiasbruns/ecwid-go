@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -268,6 +269,30 @@ token: abc
 	}
 	if cfg.Token != "abc" {
 		t.Errorf("Token = %q, want %q", cfg.Token, "abc")
+	}
+}
+
+func TestConfig_MarshalJSON_RedactsToken(t *testing.T) {
+	cfg := Config{
+		StoreID: "12345",
+		Token:   "super_secret_token",
+	}
+
+	data, err := cfg.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jsonStr := string(data)
+
+	// Must NOT contain the raw token.
+	if strings.Contains(jsonStr, "super_secret_token") {
+		t.Errorf("MarshalJSON leaked raw token: %s", jsonStr)
+	}
+
+	// Must contain the redacted version.
+	if !strings.Contains(jsonStr, cfg.RedactedToken()) {
+		t.Errorf("MarshalJSON missing redacted token %q in: %s", cfg.RedactedToken(), jsonStr)
 	}
 }
 

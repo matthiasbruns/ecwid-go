@@ -18,14 +18,17 @@ cli/
 └── AGENTS.md        # This file
 ```
 
-## Adding a New Command
+## Adding a New Command (pattern for future implementations)
+
+Currently only `version` is implemented. When adding domain commands:
 
 1. Create `cmd/<domain>.go`.
 2. Define the parent command and subcommands.
-3. Use `appClient.<Service>.<Method>()` for API calls (client is initialized in `PersistentPreRunE`).
-4. Output results via `outputResult()` helper (respects `--output` flag).
+3. Use `AppClient.<Service>.<Method>()` for API calls (client is initialized in `PersistentPreRunE`).
+4. Add an output helper (respects `--output` flag) — not yet implemented.
 
 ```go
+// Example pattern (planned, not yet in codebase):
 var productsCmd = &cobra.Command{
     Use:   "products",
     Short: "Manage products",
@@ -35,11 +38,11 @@ var productsListCmd = &cobra.Command{
     Use:   "list",
     Short: "List products",
     RunE: func(cmd *cobra.Command, args []string) error {
-        resp, err := appClient.Products.Search(cmd.Context(), ecwid.SearchProductsRequest{})
+        resp, err := AppClient.Products.Search(cmd.Context(), ecwid.SearchProductsRequest{})
         if err != nil {
             return err
         }
-        return outputResult(resp)
+        return outputResult(cmd, resp) // outputResult TBD
     },
 }
 

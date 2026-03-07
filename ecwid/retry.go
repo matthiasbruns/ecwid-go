@@ -35,13 +35,8 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return resp, nil
 		}
 
-		// Parse Retry-After header.
-		wait := 1 * time.Second // Default wait.
-		if after := resp.Header.Get("Retry-After"); after != "" {
-			if secs, parseErr := strconv.Atoi(after); parseErr == nil {
-				wait = time.Duration(secs) * time.Second
-			}
-		}
+		// Parse Retry-After header (seconds or HTTP-date).
+		wait := parseRetryAfter(resp.Header.Get("Retry-After"))
 
 		// Don't retry if this was the last attempt.
 		if attempt == t.maxRetries {
@@ -70,4 +65,35 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+// parseRetryAfter parses a Retry-After header value.
+// Supports delta-seconds (e.g., "30") and HTTP-date (e.g., "Fri, 06 Mar 2026 21:00:00 GMT").
+// Returns a minimum of 1s on parse failure or if the date is in the past.
+func parseRetryAfter(value string) time.Duration {
+	const minWait = 1 * time.Second
+
+	if value == "" {
+		return minWait
+	}
+
+	// Try delta-seconds first.
+	if secs, err := strconv.Atoi(value); err == nil {
+		d := time.Duration(secs) * time.Second
+		if d < minWait {
+			return minWait
+		}
+		return d
+	}
+
+	// Try HTTP-date.
+	if t, err := http.ParseTime(value); err == nil {
+		d := time.Until(t)
+		if d < minWait {
+			return minWait
+		}
+		return d
+	}
+
+	return minWait
 }

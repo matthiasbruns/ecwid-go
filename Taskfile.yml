@@ -11,7 +11,7 @@ tasks:
   test:
     desc: Run unit tests across all modules
     cmds:
-      - go test ./config/... ./ecwid/... -race -count=1
+      - go test ./config/... ./ecwid/... ./cli/... -race -count=1
 
   e2e:
     desc: Run E2E tests against a real Ecwid store
@@ -23,6 +23,7 @@ tasks:
   build:
     desc: Build the CLI binary
     cmds:
+      - mkdir -p ./bin
       - go build -o ./bin/ecwid -ldflags "-X main.version={{.VERSION}}" ./cli/
     vars:
       VERSION:

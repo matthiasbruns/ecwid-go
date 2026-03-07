@@ -193,11 +193,13 @@ Ecwid enforces **600 req/min per token**. The client:
 - Returns `*RateLimitError` so callers can handle it.
 - Optionally auto-retries if `MaxRetries > 0` in config.
 
-## API Coverage
+## API Coverage (planned — stub services only in bootstrap)
 
 Base URL: `https://app.ecwid.com/api/v3/{storeId}`
 
-| Domain | Service | Endpoints |
+All services below are **stubbed** (empty structs wired to `Client`). Actual endpoint methods will be implemented in follow-up issues.
+
+| Domain | Service | Planned Endpoints |
 |--------|---------|-----------|
 | Store Profile | `ProfileService` | `/profile`, staffScopes, order_statuses, extrafields, logos, shipping/payment options |
 | Orders | `OrderService` | `/orders`, `/orders/{id}`, last, deleted, extra fields, invoices, calculate |
@@ -214,19 +216,23 @@ Base URL: `https://app.ecwid.com/api/v3/{storeId}`
 | Staff | `StaffService` | `/staff`, `/staff/{id}` |
 | Reports | `ReportService` | `/reports/{type}`, `/latest-stats` |
 
-## CLI Design
+## CLI Design (planned — only `version` implemented)
+
+Currently implemented: `ecwid version`
+
+Planned structure for future domain commands:
 
 ```
 ecwid [command] [subcommand] [flags]
 
-Global flags:
+Global flags (implemented):
   --store-id     Ecwid store ID (env: ECWID_STORE_ID)
   --token        API token (env: ECWID_TOKEN)
   --config       Config file path (default: ~/.ecwid.yaml)
   --output       Output format: json|table (default: json)
   --log-level    Log level: debug|info|warn|error (default: info)
 
-Examples:
+Planned commands:
   ecwid products list --keyword "shirt" --limit 10
   ecwid orders get 12345
   ecwid profile get

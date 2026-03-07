@@ -1,17 +1,19 @@
 // Package ecwid provides a Go client for the Ecwid REST API.
 //
-// The client is stateless — credentials are passed via [Config] and the [Client]
-// holds only immutable configuration and an [net/http.Client]. It is safe for
-// concurrent use.
+// The client is stateless — credentials are passed via [config.Config] and the
+// [Client] holds only immutable configuration and an [net/http.Client]. It is
+// safe for concurrent use.
 //
 // # Quick Start
 //
-//	client := ecwid.NewClient(config.Config{
+//	cfg := config.Config{
 //	    StoreID: "12345",
 //	    Token:   "secret_abc",
-//	})
+//	}
+//	client := ecwid.NewClient(cfg)
 //
-//	products, err := client.Products.Search(ctx, SearchProductsRequest{Keyword: "shirt"})
+// Service methods will be available on client.Products, client.Orders, etc.
+// once endpoint implementations are added.
 //
 // # Error Handling
 //

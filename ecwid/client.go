@@ -44,17 +44,21 @@ type Client struct {
 // Option configures the Client.
 type Option func(*Client)
 
-// WithHTTPClient sets a custom HTTP client.
+// WithHTTPClient sets a custom HTTP client. A nil value is ignored.
 func WithHTTPClient(c *http.Client) Option {
 	return func(client *Client) {
-		client.httpClient = c
+		if c != nil {
+			client.httpClient = c
+		}
 	}
 }
 
-// WithLogger sets a custom slog logger.
+// WithLogger sets a custom slog logger. A nil value is ignored.
 func WithLogger(l *slog.Logger) Option {
 	return func(client *Client) {
-		client.logger = l
+		if l != nil {
+			client.logger = l
+		}
 	}
 }
 
@@ -77,15 +81,15 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	}
 
 	// Wrap transport with retry if configured.
+	// Shallow-copy the http.Client to preserve Jar, CheckRedirect, Timeout, etc.
 	if cfg.MaxRetries > 0 {
-		c.httpClient = &http.Client{
-			Transport: &retryTransport{
-				base:       c.httpClient.Transport,
-				maxRetries: cfg.MaxRetries,
-				logger:     c.logger,
-			},
-			Timeout: c.httpClient.Timeout,
+		wrapped := *c.httpClient
+		wrapped.Transport = &retryTransport{
+			base:       c.httpClient.Transport,
+			maxRetries: cfg.MaxRetries,
+			logger:     c.logger,
 		}
+		c.httpClient = &wrapped
 	}
 
 	// Initialize services.

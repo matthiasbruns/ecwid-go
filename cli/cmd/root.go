@@ -33,9 +33,10 @@ var rootCmd = &cobra.Command{
 		}
 
 		overrides := config.Config{
-			StoreID: storeID,
-			Token:   token,
-			Output:  output,
+			StoreID:  storeID,
+			Token:    token,
+			Output:   output,
+			LogLevel: logLevel,
 		}
 
 		cfg, err := config.Load(cfgFile, overrides)

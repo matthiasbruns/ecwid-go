@@ -16,8 +16,9 @@ func SetVersion(v string) {
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("ecwid-cli %s\n", appVersion)
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "ecwid-cli %s\n", appVersion)
+		return err
 	},
 }
 
