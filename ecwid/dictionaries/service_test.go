@@ -2,6 +2,7 @@ package dictionaries_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -121,6 +122,9 @@ func TestCurrencyByCountry(t *testing.T) {
 		if r.URL.Query().Get("countryCode") != "US" {
 			t.Error("expected countryCode=US")
 		}
+		if r.URL.Query().Get("lang") != "en" {
+			t.Error("expected lang=en")
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(fixture)
 	}))
@@ -195,7 +199,7 @@ func TestTaxClasses(t *testing.T) {
 func TestCountries_Error(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"errorMessage":"internal error","errorCode":500}`))
+		_, _ = w.Write([]byte(`{"errorMessage":"internal error","errorCode":"500"}`))
 	}))
 	defer srv.Close()
 
@@ -203,5 +207,13 @@ func TestCountries_Error(t *testing.T) {
 	_, err := svc.Countries(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+
+	var apiErr *api.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *api.APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", apiErr.StatusCode)
 	}
 }

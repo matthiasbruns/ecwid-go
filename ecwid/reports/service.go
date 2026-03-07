@@ -2,6 +2,7 @@ package reports
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -23,6 +24,10 @@ func NewService(requester api.Requester) *Service {
 // API: GET /reports/{reportType}
 // Required scope: read_store_stats
 func (s *Service) GetReport(ctx context.Context, reportType string, opts *ReportOptions) (*Report, error) {
+	if reportType == "" {
+		return nil, errors.New("reportType must not be empty")
+	}
+
 	q := url.Values{}
 	if opts != nil {
 		if opts.StartedFrom > 0 {
@@ -40,7 +45,7 @@ func (s *Service) GetReport(ctx context.Context, reportType string, opts *Report
 	}
 
 	var result Report
-	if err := s.requester.Get(ctx, "/reports/"+reportType, q, &result); err != nil {
+	if err := s.requester.Get(ctx, "/reports/"+url.PathEscape(reportType), q, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

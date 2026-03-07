@@ -2,6 +2,7 @@ package reports_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,9 @@ func TestGetReport(t *testing.T) {
 		}
 		if r.URL.Query().Get("startedFrom") != "1591646400" {
 			t.Errorf("expected startedFrom=1591646400, got %s", r.URL.Query().Get("startedFrom"))
+		}
+		if r.URL.Query().Get("timeScaleValue") != "day" {
+			t.Errorf("expected timeScaleValue=day, got %s", r.URL.Query().Get("timeScaleValue"))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"reportType":"allOrders","firstDayOfWeek":"MONDAY","aggregatedData":[{"metricName":"orders","value":42}],"dataset":[{"timestamp":1591646400}]}`))
@@ -118,7 +122,7 @@ func TestLatestStatsNoOpts(t *testing.T) {
 func TestGetReport_Error(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"errorMessage":"access denied","errorCode":403}`))
+		_, _ = w.Write([]byte(`{"errorMessage":"access denied","errorCode":"403"}`))
 	}))
 	defer srv.Close()
 
@@ -126,5 +130,26 @@ func TestGetReport_Error(t *testing.T) {
 	_, err := svc.GetReport(context.Background(), "allOrders", nil)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+
+	var apiErr *api.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *api.APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestGetReport_EmptyReportType(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("should not reach server")
+	}))
+	defer srv.Close()
+
+	svc := newTestService(t, srv)
+	_, err := svc.GetReport(context.Background(), "", nil)
+	if err == nil {
+		t.Fatal("expected error for empty reportType")
 	}
 }

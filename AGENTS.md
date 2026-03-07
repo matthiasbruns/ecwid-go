@@ -20,7 +20,7 @@ Each module has its own `AGENTS.md` with package-specific instructions.
 
 ### Package structure
 
-```
+```text
 ecwid/
   client.go                  # Client, NewClient, Options (public)
   errors.go                  # APIError, RateLimitError (type aliases, public)
