@@ -50,15 +50,15 @@ type SearchResult struct {
 
 // SearchOptions holds query parameters for searching subscriptions.
 type SearchOptions struct {
-	ID                int64
-	CreatedFrom       string
-	CreatedTo         string
-	UpdatedFrom       string
-	UpdatedTo         string
-	NextChargeFrom    string
-	NextChargeTo      string
+	ID             int64
+	CreatedFrom    string
+	CreatedTo      string
+	UpdatedFrom    string
+	UpdatedTo      string
+	NextChargeFrom string
+	NextChargeTo   string
 	// Deprecated: Use NextChargeFrom instead.
-	ChargeFrom        string
+	ChargeFrom string
 	// Deprecated: Use NextChargeTo instead.
 	ChargeTo          string
 	CancelledFrom     string
