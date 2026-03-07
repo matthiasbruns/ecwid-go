@@ -1,4 +1,4 @@
-package ecwid
+package api
 
 import (
 	"log/slog"
@@ -40,10 +40,8 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return resp, nil
 		}
 
-		// Parse Retry-After header (seconds or HTTP-date).
 		wait := parseRetryAfter(resp.Header.Get("Retry-After"))
 
-		// Don't retry if this was the last attempt.
 		if attempt == t.maxRetries {
 			return resp, nil
 		}
@@ -60,10 +58,8 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			"path", req.URL.Path,
 		)
 
-		// Close the body before retrying.
 		_ = resp.Body.Close()
 
-		// Wait before retrying. Respect context cancellation.
 		timer := time.NewTimer(wait)
 		select {
 		case <-req.Context().Done():
@@ -86,7 +82,6 @@ func parseRetryAfter(value string) time.Duration {
 		return minWait
 	}
 
-	// Try delta-seconds first.
 	if secs, err := strconv.Atoi(value); err == nil {
 		d := time.Duration(secs) * time.Second
 		if d < minWait {
@@ -95,7 +90,6 @@ func parseRetryAfter(value string) time.Duration {
 		return d
 	}
 
-	// Try HTTP-date.
 	if t, err := http.ParseTime(value); err == nil {
 		d := time.Until(t)
 		if d < minWait {

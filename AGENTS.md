@@ -1,6 +1,6 @@
 # AGENTS.md — ecwid-go
 
-Go API client and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-reference). See also [agents.md](https://agents.md/).
+Go API client and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-reference).
 
 ## Modules
 
@@ -14,13 +14,43 @@ Three separate Go modules connected by `go.work`:
 
 Each module has its own `AGENTS.md` with package-specific instructions.
 
+## ⚠️ Exported API — CRUCIAL RULE
+
+**Every exported symbol is a compatibility contract.** Once published, changing or removing it is a breaking change. Keep the public API surface as small as possible.
+
+### Package structure
+
+```text
+ecwid/
+  client.go                  # Client, NewClient, Options (public)
+  errors.go                  # APIError, RateLimitError (type aliases, public)
+  internal/
+    api/                     # HTTP transport, retry, errors (private)
+  dictionaries/              # Public domain package
+    types.go                 # Exported types (Country, Currency, etc.)
+    service.go               # Service struct + methods
+  reports/                   # Public domain package
+    types.go
+    service.go
+```
+
+### Rules
+
+- **Public packages** (`ecwid/dictionaries/`, `ecwid/reports/`, etc.) export only what users need: Service type, request options, response types.
+- **Internal packages** (`ecwid/internal/api/`) hold all implementation details: HTTP client, retry transport, error parsing, request building. Users of the lib cannot import these.
+- **New domain services** follow the same pattern: `ecwid/<domain>/service.go` + `ecwid/<domain>/types.go`, with the Service accepting an `api.Requester` interface.
+- **Before exporting anything**, ask: "Does the consumer need this?" If not, keep it internal or unexported.
+- **Type aliases** in root `ecwid/` re-export internal types that users need (e.g., `APIError`, `RateLimitError`) without exposing the internal package.
+
 ## Key Principles
 
 - **Stateless client** — no package-level state, credentials passed via `config.Config` into `NewClient()`
 - **Stdlib only** for config + client — CLI adds cobra as the only external dep
 - **Every method takes `context.Context`** as first parameter
-- **Typed errors** — `*APIError` (all non-2xx) and `*RateLimitError` (429 + Retry-After)
+- **Typed errors** — `*ecwid.APIError` (all non-2xx) and `*ecwid.RateLimitError` (429 + Retry-After)
 - **Never log credentials** — use `config.RedactedToken()` for diagnostics
+- **Domain services are sub-packages** — `ecwid/dictionaries`, `ecwid/reports`, etc.
+- **Shared types** (`UpdateResult`, `CreateResult`, `DeleteResult`) go in a shared internal or the domain package that introduces them
 
 ## Git Workflow
 
