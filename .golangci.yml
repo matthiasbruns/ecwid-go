@@ -11,17 +11,20 @@ linters:
     - unused
     - ineffassign
     - gocritic
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-settings:
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-  goimports:
-    local-prefixes: github.com/matthiasbruns/ecwid-go
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/matthiasbruns/ecwid-go

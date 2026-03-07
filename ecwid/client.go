@@ -221,7 +221,7 @@ func (c *Client) get(ctx context.Context, path string, params url.Values, v any)
 }
 
 // post performs a POST request with a JSON body.
-func (c *Client) post(ctx context.Context, path string, body any, v any) error {
+func (c *Client) post(ctx context.Context, path string, body, v any) error {
 	var reader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -240,7 +240,7 @@ func (c *Client) post(ctx context.Context, path string, body any, v any) error {
 }
 
 // put performs a PUT request with a JSON body.
-func (c *Client) put(ctx context.Context, path string, body any, v any) error {
+func (c *Client) put(ctx context.Context, path string, body, v any) error {
 	var reader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
