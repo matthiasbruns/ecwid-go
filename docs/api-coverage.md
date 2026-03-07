@@ -67,7 +67,7 @@ The client exposes **11 services** via `ecwid.Client`:
 
 ### Orders — ❌ NOT IMPLEMENTED
 
-No `orders` package exists. **15 endpoints missing:**
+No `orders` package exists. **18 endpoints missing:**
 
 | Endpoint | Method | Path |
 |---|---|---|

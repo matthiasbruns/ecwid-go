@@ -60,7 +60,7 @@ def fetch_and_convert(url, output_file):
         
         # Fetch the page
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=30) as response:
             html_content = response.read().decode('utf-8')
         
         # Configure html2text
@@ -113,7 +113,7 @@ def main():
         # Be respectful to the server
         time.sleep(0.5)
     
-    print(f"\n✓ Documentation extraction complete!")
+    print("\n✓ Documentation extraction complete!")
     print(f"  Success: {success_count} files")
     print(f"  Failed: {fail_count} files")
     print(f"  Output directory: {DOCS_DIR}/")
