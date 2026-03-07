@@ -83,17 +83,17 @@ type Order struct {
 	ReversedTaxApplied *bool           `json:"reversedTaxApplied,omitempty"`
 
 	// Notes
-	OrderComments    string `json:"orderComments,omitempty"`
+	OrderComments     string `json:"orderComments,omitempty"`
 	PrivateAdminNotes string `json:"privateAdminNotes,omitempty"`
 
 	// Tracking/Referral
-	RefererURL  string          `json:"refererUrl,omitempty"`
-	GlobalReferer string        `json:"globalReferer,omitempty"`
-	AffiliateID string          `json:"affiliateId,omitempty"`
-	RefererId   int64           `json:"refererId,omitempty"`
-	IPAddress   string          `json:"ipAddress,omitempty"`
-	UtmData     json.RawMessage `json:"utmData,omitempty"`
-	UtmDataSets json.RawMessage `json:"utmDataSets,omitempty"`
+	RefererURL    string          `json:"refererUrl,omitempty"`
+	GlobalReferer string          `json:"globalReferer,omitempty"`
+	AffiliateID   string          `json:"affiliateId,omitempty"`
+	RefererId     int64           `json:"refererId,omitempty"`
+	IPAddress     string          `json:"ipAddress,omitempty"`
+	UtmData       json.RawMessage `json:"utmData,omitempty"`
+	UtmDataSets   json.RawMessage `json:"utmDataSets,omitempty"`
 
 	// External
 	ExternalFulfillment *bool           `json:"externalFulfillment,omitempty"`
@@ -198,13 +198,13 @@ type CreateRequest struct {
 	TotalBeforeGiftCardRedemption float64 `json:"totalBeforeGiftCardRedemption,omitempty"`
 	PricesIncludeTax              *bool   `json:"pricesIncludeTax,omitempty"`
 
-	Lang                             string          `json:"lang,omitempty"`
-	ExternalTransactionID            string          `json:"externalTransactionId,omitempty"`
-	ExternalFulfillment              *bool           `json:"externalFulfillment,omitempty"`
-	ExternalOrderID                  string          `json:"externalOrderId,omitempty"`
-	UtmData                          json.RawMessage `json:"utmData,omitempty"`
-	UtmDataSets                      json.RawMessage `json:"utmDataSets,omitempty"`
-	DisableAllCustomerNotifications  *bool           `json:"disableAllCustomerNotifications,omitempty"`
+	Lang                            string          `json:"lang,omitempty"`
+	ExternalTransactionID           string          `json:"externalTransactionId,omitempty"`
+	ExternalFulfillment             *bool           `json:"externalFulfillment,omitempty"`
+	ExternalOrderID                 string          `json:"externalOrderId,omitempty"`
+	UtmData                         json.RawMessage `json:"utmData,omitempty"`
+	UtmDataSets                     json.RawMessage `json:"utmDataSets,omitempty"`
+	DisableAllCustomerNotifications *bool           `json:"disableAllCustomerNotifications,omitempty"`
 }
 
 // CreateResult represents the response from creating an order.
@@ -234,22 +234,22 @@ type UpdateRequest struct {
 	ExtraFields       json.RawMessage `json:"extraFields,omitempty"`
 	OrderExtraFields  json.RawMessage `json:"orderExtraFields,omitempty"`
 
-	CustomerID         int64   `json:"customerId,omitempty"`
-	CustomerGroup      string  `json:"customerGroup,omitempty"`
-	CustomerGroupID    int64   `json:"customerGroupId,omitempty"`
-	CustomerTaxExempt  *bool   `json:"customerTaxExempt,omitempty"`
-	CustomerTaxID      string  `json:"customerTaxId,omitempty"`
-	CustomerTaxIDValid *bool   `json:"customerTaxIdValid,omitempty"`
-	B2BB2C             string  `json:"b2b_b2c,omitempty"`
-	AcceptMarketing    *bool   `json:"acceptMarketing,omitempty"`
-	IPAddress          string  `json:"ipAddress,omitempty"`
-	RefererURL         string  `json:"refererUrl,omitempty"`
-	GlobalReferer      string  `json:"globalReferer,omitempty"`
-	RefererId          int64   `json:"refererId,omitempty"`
-	OrderComments      string  `json:"orderComments,omitempty"`
-	PrivateAdminNotes  string  `json:"privateAdminNotes,omitempty"`
-	TrackingNumber     string  `json:"trackingNumber,omitempty"`
-	Hidden             *bool   `json:"hidden,omitempty"`
+	CustomerID         int64    `json:"customerId,omitempty"`
+	CustomerGroup      string   `json:"customerGroup,omitempty"`
+	CustomerGroupID    int64    `json:"customerGroupId,omitempty"`
+	CustomerTaxExempt  *bool    `json:"customerTaxExempt,omitempty"`
+	CustomerTaxID      string   `json:"customerTaxId,omitempty"`
+	CustomerTaxIDValid *bool    `json:"customerTaxIdValid,omitempty"`
+	B2BB2C             string   `json:"b2b_b2c,omitempty"`
+	AcceptMarketing    *bool    `json:"acceptMarketing,omitempty"`
+	IPAddress          string   `json:"ipAddress,omitempty"`
+	RefererURL         string   `json:"refererUrl,omitempty"`
+	GlobalReferer      string   `json:"globalReferer,omitempty"`
+	RefererId          int64    `json:"refererId,omitempty"`
+	OrderComments      string   `json:"orderComments,omitempty"`
+	PrivateAdminNotes  string   `json:"privateAdminNotes,omitempty"`
+	TrackingNumber     string   `json:"trackingNumber,omitempty"`
+	Hidden             *bool    `json:"hidden,omitempty"`
 	Discount           *float64 `json:"discount,omitempty"`
 	CouponDiscount     *float64 `json:"couponDiscount,omitempty"`
 	VolumeDiscount     *float64 `json:"volumeDiscount,omitempty"`
@@ -258,13 +258,13 @@ type UpdateRequest struct {
 	TotalBeforeGiftCardRedemption *float64 `json:"totalBeforeGiftCardRedemption,omitempty"`
 	PricesIncludeTax              *bool    `json:"pricesIncludeTax,omitempty"`
 
-	Lang                             string          `json:"lang,omitempty"`
-	ExternalTransactionID            string          `json:"externalTransactionId,omitempty"`
-	ExternalFulfillment              *bool           `json:"externalFulfillment,omitempty"`
-	ExternalOrderID                  string          `json:"externalOrderId,omitempty"`
-	UtmData                          json.RawMessage `json:"utmData,omitempty"`
-	UtmDataSets                      json.RawMessage `json:"utmDataSets,omitempty"`
-	DisableAllCustomerNotifications  *bool           `json:"disableAllCustomerNotifications,omitempty"`
+	Lang                            string          `json:"lang,omitempty"`
+	ExternalTransactionID           string          `json:"externalTransactionId,omitempty"`
+	ExternalFulfillment             *bool           `json:"externalFulfillment,omitempty"`
+	ExternalOrderID                 string          `json:"externalOrderId,omitempty"`
+	UtmData                         json.RawMessage `json:"utmData,omitempty"`
+	UtmDataSets                     json.RawMessage `json:"utmDataSets,omitempty"`
+	DisableAllCustomerNotifications *bool           `json:"disableAllCustomerNotifications,omitempty"`
 }
 
 // UpdateResult represents the response from an update operation.
@@ -343,17 +343,17 @@ type CreateExtraFieldResult struct {
 
 // CalculateRequest holds fields for calculating order details.
 type CalculateRequest struct {
-	Items            json.RawMessage `json:"items"`
-	BillingPerson    json.RawMessage `json:"billingPerson,omitempty"`
-	ShippingPerson   json.RawMessage `json:"shippingPerson,omitempty"`
-	CustomSurcharges json.RawMessage `json:"customSurcharges,omitempty"`
-	DiscountInfo     json.RawMessage `json:"discountInfo,omitempty"`
-	GiftCardCode     string          `json:"giftCardCode,omitempty"`
-	HandlingFee      json.RawMessage `json:"handlingFee,omitempty"`
-	ShippingOption   json.RawMessage `json:"shippingOption,omitempty"`
-	DiscountCoupon   json.RawMessage `json:"discountCoupon,omitempty"`
-	Email            string          `json:"email,omitempty"`
-	IPAddress        string          `json:"ipAddress,omitempty"`
-	CustomerID       int64           `json:"customerId,omitempty"`
-	CustomerTaxExempt *bool          `json:"customerTaxExempt,omitempty"`
+	Items             json.RawMessage `json:"items"`
+	BillingPerson     json.RawMessage `json:"billingPerson,omitempty"`
+	ShippingPerson    json.RawMessage `json:"shippingPerson,omitempty"`
+	CustomSurcharges  json.RawMessage `json:"customSurcharges,omitempty"`
+	DiscountInfo      json.RawMessage `json:"discountInfo,omitempty"`
+	GiftCardCode      string          `json:"giftCardCode,omitempty"`
+	HandlingFee       json.RawMessage `json:"handlingFee,omitempty"`
+	ShippingOption    json.RawMessage `json:"shippingOption,omitempty"`
+	DiscountCoupon    json.RawMessage `json:"discountCoupon,omitempty"`
+	Email             string          `json:"email,omitempty"`
+	IPAddress         string          `json:"ipAddress,omitempty"`
+	CustomerID        int64           `json:"customerId,omitempty"`
+	CustomerTaxExempt *bool           `json:"customerTaxExempt,omitempty"`
 }
