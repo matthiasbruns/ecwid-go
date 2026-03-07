@@ -41,11 +41,19 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.UpdatedTo != "" {
 			q.Set("updatedTo", opts.UpdatedTo)
 		}
-		if opts.NextChargeFrom != "" {
-			q.Set("nextChargeFrom", opts.NextChargeFrom)
+		chargeFrom := opts.NextChargeFrom
+		if chargeFrom == "" {
+			chargeFrom = opts.ChargeFrom
 		}
-		if opts.NextChargeTo != "" {
-			q.Set("nextChargeTo", opts.NextChargeTo)
+		if chargeFrom != "" {
+			q.Set("nextChargeFrom", chargeFrom)
+		}
+		chargeTo := opts.NextChargeTo
+		if chargeTo == "" {
+			chargeTo = opts.ChargeTo
+		}
+		if chargeTo != "" {
+			q.Set("nextChargeTo", chargeTo)
 		}
 		if opts.CancelledFrom != "" {
 			q.Set("cancelledFrom", opts.CancelledFrom)
@@ -85,8 +93,8 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 // API: GET /subscriptions/{subscriptionId}
 // Required scope: read_subscriptions
 func (s *Service) Get(ctx context.Context, subscriptionID int64) (*Subscription, error) {
-	if subscriptionID == 0 {
-		return nil, errors.New("subscriptionID must not be zero")
+	if subscriptionID <= 0 {
+		return nil, errors.New("subscriptionID must be positive")
 	}
 
 	path := fmt.Sprintf("/subscriptions/%d", subscriptionID)
@@ -103,8 +111,8 @@ func (s *Service) Get(ctx context.Context, subscriptionID int64) (*Subscription,
 // API: PUT /subscriptions/{subscriptionId}
 // Required scope: update_subscriptions
 func (s *Service) Update(ctx context.Context, subscriptionID int64, req *UpdateRequest) (*UpdateResult, error) {
-	if subscriptionID == 0 {
-		return nil, errors.New("subscriptionID must not be zero")
+	if subscriptionID <= 0 {
+		return nil, errors.New("subscriptionID must be positive")
 	}
 
 	path := fmt.Sprintf("/subscriptions/%d", subscriptionID)

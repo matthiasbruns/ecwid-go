@@ -57,6 +57,10 @@ type SearchOptions struct {
 	UpdatedTo         string
 	NextChargeFrom    string
 	NextChargeTo      string
+	// Deprecated: Use NextChargeFrom instead.
+	ChargeFrom        string
+	// Deprecated: Use NextChargeTo instead.
+	ChargeTo          string
 	CancelledFrom     string
 	CancelledTo       string
 	CustomerID        int64

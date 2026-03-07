@@ -6,6 +6,7 @@ Uses html2text for better HTML to Markdown conversion.
 
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -45,7 +46,8 @@ def install_html2text():
         return True
     except ImportError:
         print("Installing html2text...")
-        subprocess.run(["pip3", "install", "html2text"], check=True)
+        subprocess.run([sys.executable, "-m", "pip", "install", "html2text"], check=True)
+        import html2text  # noqa: F401
         return True
 
 def fetch_and_convert(url, output_file):

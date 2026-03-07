@@ -24,13 +24,13 @@ The client exposes **11 services** via `ecwid.Client`:
 
 ---
 
-## Bugs / Incorrect Implementations
+## Previously Reported Bugs (now resolved)
 
-| Issue | Severity | Location |
+| Issue | Status | Location |
 |---|---|---|
-| Subscriptions `SearchOptions` uses `chargeFrom`/`chargeTo` but API expects `nextChargeFrom`/`nextChargeTo` — filters silently fail | **HIGH** | `ecwid/subscriptions/service.go` |
-| Carts `PlaceResult` missing `id`, `vendorOrderNumber`, `cartId` fields from API response | **MEDIUM** | `ecwid/carts/types.go` |
-| Subscriptions `Get`/`Update` methods lack zero-value validation for `subscriptionID` | **LOW** | `ecwid/subscriptions/service.go` |
+| ~~Subscriptions `SearchOptions` used `chargeFrom`/`chargeTo` but API expects `nextChargeFrom`/`nextChargeTo`~~ | ✅ Fixed | `ecwid/subscriptions/service.go` |
+| ~~Carts `PlaceResult` missing `id`, `vendorOrderNumber`, `cartId` fields from API response~~ | ✅ Fixed | `ecwid/carts/types.go` |
+| ~~Subscriptions `Get`/`Update` methods lack zero-value validation for `subscriptionID`~~ | ✅ Fixed | `ecwid/subscriptions/service.go` |
 
 ---
 
@@ -253,7 +253,7 @@ No `products` package exists. **45 endpoints missing:**
 - `Cart` uses `json.RawMessage` for `Items`, `BillingPerson`, `ShippingPerson`, `ShippingOption`, `DiscountCoupon`, `DiscountInfo`
 - `SearchOptions` missing `showHidden`, `email` query params
 - `UpdateRequest` only has `Hidden` — missing `taxesOnShipping`, `b2b_b2c`, and more
-- `PlaceResult` missing `id`, `vendorOrderNumber`, `cartId` fields
+- ~~`PlaceResult` missing `id`, `vendorOrderNumber`, `cartId` fields~~ (fixed)
 
 ---
 
@@ -266,7 +266,7 @@ No `products` package exists. **45 endpoints missing:**
 | Update recurring subscription | PUT | `/subscriptions/{id}` | ✅ Implemented |
 
 **All endpoints implemented**, but:
-- 🐛 **BUG:** `SearchOptions` uses `chargeFrom`/`chargeTo` query param names — API expects `nextChargeFrom`/`nextChargeTo`
+- ~~`SearchOptions` used `chargeFrom`/`chargeTo` query param names~~ (fixed — now uses `nextChargeFrom`/`nextChargeTo`)
 - `SearchOptions` missing: `recurringIntervalCount`, `email`, `orderId`, `orderTotal`, `orderCreatedFrom`, `orderCreatedTo`, `sortBy`
 
 ---
@@ -309,4 +309,4 @@ No `products` package exists. **45 endpoints missing:**
 | **Services fully complete** | 3 (Domains, Dictionaries, Discounts) |
 | **Services partially complete** | 8 |
 | **API areas with zero implementation** | 11+ |
-| **Bugs found** | 3 |
+| **Bugs found (all resolved)** | 3 |

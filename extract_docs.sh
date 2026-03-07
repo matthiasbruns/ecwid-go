@@ -3,7 +3,7 @@
 # Script to extract Ecwid API documentation pages to markdown
 # Uses pandoc to convert HTML to markdown
 
-set -e
+set -euo pipefail
 
 DOCS_DIR="docs/ecwid"
 BASE_URL="https://docs.ecwid.com/api-reference"
@@ -47,11 +47,16 @@ convert_page() {
     
     # Fetch the page and convert to markdown
     if command -v pandoc &> /dev/null; then
-        curl -s "$url" | pandoc -f html -t markdown -o "$output_file"
-        echo "  ✓ Saved to: $output_file"
+        curl -fsS "$url" | pandoc -f html -t markdown -o "$output_file"
+        if [ -s "$output_file" ]; then
+            echo "  ✓ Saved to: $output_file"
+        else
+            echo "  ✗ Failed (empty file)"
+            rm -f "$output_file"
+        fi
     else
         echo "  ✗ pandoc not found, downloading HTML only"
-        curl -s "$url" -o "${output_file%.md}.html"
+        curl -fsS "$url" -o "${output_file%.md}.html"
     fi
 }
 

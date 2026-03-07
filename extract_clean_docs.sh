@@ -3,7 +3,7 @@
 # Script to extract Ecwid API documentation pages to markdown
 # Uses pandoc with optimized settings for cleaner output
 
-set -e
+set -euo pipefail
 
 DOCS_DIR="docs/ecwid"
 BASE_URL="https://docs.ecwid.com/api-reference"
@@ -49,7 +49,7 @@ convert_page() {
     # --strip-comments: remove HTML comments
     # --wrap=none: don't wrap lines
     # -t gfm: use GitHub-flavored markdown
-    curl -s "$url" | \
+    curl -fsS "$url" | \
         pandoc \
             --from=html \
             --to=gfm \

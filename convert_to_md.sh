@@ -2,9 +2,14 @@
 
 # Script to convert HTML files to markdown
 
-set -e
+set -euo pipefail
 
 DOCS_DIR="docs/ecwid"
+
+if ! command -v pandoc &> /dev/null; then
+    echo "Error: pandoc is not installed. Please install it first."
+    exit 1
+fi
 
 echo "Converting HTML files to markdown..."
 
@@ -14,8 +19,12 @@ for html_file in "$DOCS_DIR"/*.html; do
         md_file="${html_file%.html}.md"
         echo "Converting: $(basename "$html_file") -> $(basename "$md_file")"
         pandoc -f html -t markdown "$html_file" -o "$md_file"
-        # Remove the HTML file after successful conversion
-        rm "$html_file"
+        if [ -s "$md_file" ]; then
+            rm "$html_file"
+        else
+            echo "Conversion failed for $(basename "$html_file"): empty output"
+            rm -f "$md_file"
+        fi
     fi
 done
 
