@@ -4,4 +4,5 @@ use (
 	./config
 	./ecwid
 	./cli
+	./e2e
 )
