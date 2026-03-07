@@ -4,53 +4,69 @@ package customers
 import "encoding/json"
 
 // Customer represents a customer in Ecwid.
+// Docs: https://docs.ecwid.com/api-reference/rest-api/customers/search-customers.md
 type Customer struct {
-	ID                  int64           `json:"id"`
-	Email               string          `json:"email,omitempty"`
-	Registered          string          `json:"registered,omitempty"`
-	Updated             string          `json:"updated,omitempty"`
-	Name                string          `json:"name,omitempty"`
-	FirstName           string          `json:"firstName,omitempty"`
-	LastName            string          `json:"lastName,omitempty"`
-	City                string          `json:"city,omitempty"`
-	Street              string          `json:"street,omitempty"`
-	CountryCode         string          `json:"countryCode,omitempty"`
-	CountryName         string          `json:"countryName,omitempty"`
-	PostalCode          string          `json:"postalCode,omitempty"`
-	StateOrProvinceCode string          `json:"stateOrProvinceCode,omitempty"`
-	StateOrProvinceName string          `json:"stateOrProvinceName,omitempty"`
-	Phone               string          `json:"phone,omitempty"`
-	TotalOrderCount     int             `json:"totalOrderCount,omitempty"`
-	BillingPerson       json.RawMessage `json:"billingPerson,omitempty"`
-	ShippingAddresses   json.RawMessage `json:"shippingAddresses,omitempty"`
-	TaxID               string          `json:"taxId,omitempty"`
-	TaxIDValid          *bool           `json:"taxIdValid,omitempty"`
-	AcceptMarketing     *bool           `json:"acceptMarketing,omitempty"`
+	ID                int64            `json:"id"`
+	Name              string           `json:"name,omitempty"`
+	Email             string           `json:"email,omitempty"`
+	Registered        string           `json:"registered,omitempty"`
+	Updated           string           `json:"updated,omitempty"`
+	TotalOrderCount   int              `json:"totalOrderCount,omitempty"`
+	CustomerGroupID   int64            `json:"customerGroupId,omitempty"`
+	CustomerGroupName string           `json:"customerGroupName,omitempty"`
+	BillingPerson     *json.RawMessage `json:"billingPerson,omitempty"`
+	ShippingAddresses *json.RawMessage `json:"shippingAddresses,omitempty"`
+	Contacts          *json.RawMessage `json:"contacts,omitempty"`
+	TaxExempt         *bool            `json:"taxExempt,omitempty"`
+	TaxID             string           `json:"taxId,omitempty"`
+	TaxIDValid        *bool            `json:"taxIdValid,omitempty"`
+	B2BB2C            string           `json:"b2b_b2c,omitempty"`
+	AcceptMarketing   *bool            `json:"acceptMarketing,omitempty"`
+	Lang              string           `json:"lang,omitempty"`
+	Stats             *json.RawMessage `json:"stats,omitempty"`
+	PrivateAdminNotes string           `json:"privateAdminNotes,omitempty"`
+	Favorites         *json.RawMessage `json:"favorites,omitempty"`
 }
 
 // SearchResult is the paginated response from the customers search API.
 type SearchResult struct {
-	Total  int        `json:"total"`
-	Count  int        `json:"count"`
-	Offset int        `json:"offset"`
-	Limit  int        `json:"limit"`
-	Items  []Customer `json:"items"`
+	Total            int        `json:"total"`
+	Count            int        `json:"count"`
+	Offset           int        `json:"offset"`
+	Limit            int        `json:"limit"`
+	Items            []Customer `json:"items"`
+	AllCustomerCount int        `json:"allCustomerCount,omitempty"`
 }
 
 // SearchOptions holds query parameters for searching customers.
 type SearchOptions struct {
-	Keyword       string
-	Email         string
-	Name          string
-	MinOrderCount int
-	MaxOrderCount int
-	SortBy        string
-	Offset        int
-	Limit         int
-	CreatedFrom   string
-	CreatedTo     string
-	UpdatedFrom   string
-	UpdatedTo     string
+	Keyword             string
+	Name                string
+	Email               string
+	UseExactEmailMatch  *bool
+	Phone               string
+	City                string
+	PostalCode          string
+	StateOrProvinceCode string
+	CountryCodes        string
+	CompanyName         string
+	AcceptMarketing     *bool
+	Lang                string
+	CustomerGroupIDs    string
+	MinOrderCount       int
+	MaxOrderCount       int
+	MinSalesValue       *float64
+	MaxSalesValue       *float64
+	PurchasedProductIDs string
+	B2BB2C              string
+	TaxExempt           *bool
+	CreatedFrom         string
+	CreatedTo           string
+	UpdatedFrom         string
+	UpdatedTo           string
+	SortBy              string
+	Offset              int
+	Limit               int
 }
 
 // OrdersResult is the paginated response from the customer orders endpoint.

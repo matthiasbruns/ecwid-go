@@ -29,17 +29,62 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.Keyword != "" {
 			q.Set("keyword", opts.Keyword)
 		}
+		if opts.Name != "" {
+			q.Set("name", opts.Name)
+		}
 		if opts.Email != "" {
 			q.Set("email", opts.Email)
 		}
-		if opts.Name != "" {
-			q.Set("name", opts.Name)
+		if opts.UseExactEmailMatch != nil && *opts.UseExactEmailMatch {
+			q.Set("useExactEmailMatch", "true")
+		}
+		if opts.Phone != "" {
+			q.Set("phone", opts.Phone)
+		}
+		if opts.City != "" {
+			q.Set("city", opts.City)
+		}
+		if opts.PostalCode != "" {
+			q.Set("postalCode", opts.PostalCode)
+		}
+		if opts.StateOrProvinceCode != "" {
+			q.Set("stateOrProvinceCode", opts.StateOrProvinceCode)
+		}
+		if opts.CountryCodes != "" {
+			q.Set("countryCodes", opts.CountryCodes)
+		}
+		if opts.CompanyName != "" {
+			q.Set("companyName", opts.CompanyName)
+		}
+		if opts.AcceptMarketing != nil {
+			q.Set("acceptMarketing", fmt.Sprintf("%t", *opts.AcceptMarketing))
+		}
+		if opts.Lang != "" {
+			q.Set("lang", opts.Lang)
+		}
+		if opts.CustomerGroupIDs != "" {
+			q.Set("customerGroupIds", opts.CustomerGroupIDs)
 		}
 		if opts.MinOrderCount > 0 {
 			q.Set("minOrderCount", fmt.Sprintf("%d", opts.MinOrderCount))
 		}
 		if opts.MaxOrderCount > 0 {
 			q.Set("maxOrderCount", fmt.Sprintf("%d", opts.MaxOrderCount))
+		}
+		if opts.MinSalesValue != nil {
+			q.Set("minSalesValue", fmt.Sprintf("%g", *opts.MinSalesValue))
+		}
+		if opts.MaxSalesValue != nil {
+			q.Set("maxSalesValue", fmt.Sprintf("%g", *opts.MaxSalesValue))
+		}
+		if opts.PurchasedProductIDs != "" {
+			q.Set("purchasedProductIds", opts.PurchasedProductIDs)
+		}
+		if opts.B2BB2C != "" {
+			q.Set("b2b_b2c", opts.B2BB2C)
+		}
+		if opts.TaxExempt != nil {
+			q.Set("taxExempt", fmt.Sprintf("%t", *opts.TaxExempt))
 		}
 		if opts.SortBy != "" {
 			q.Set("sortBy", opts.SortBy)

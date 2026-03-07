@@ -26,20 +26,29 @@ func NewService(requester api.Requester) *Service {
 func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResult, error) {
 	q := url.Values{}
 	if opts != nil {
+		if opts.Keyword != "" {
+			q.Set("keyword", opts.Keyword)
+		}
 		if opts.Parent > 0 {
 			q.Set("parent", fmt.Sprintf("%d", opts.Parent))
 		}
-		if opts.HiddenCategories {
-			q.Set("hidden_categories", "true")
+		if opts.ParentIDs != "" {
+			q.Set("parentIds", opts.ParentIDs)
 		}
-		if opts.ProductIds != "" {
-			q.Set("productIds", opts.ProductIds)
+		if opts.WithSubcategories != nil && *opts.WithSubcategories {
+			q.Set("withSubcategories", "true")
+		}
+		if opts.HiddenCategories != nil && *opts.HiddenCategories {
+			q.Set("hidden_categories", "true")
 		}
 		if opts.Offset > 0 {
 			q.Set("offset", fmt.Sprintf("%d", opts.Offset))
 		}
 		if opts.Limit > 0 {
 			q.Set("limit", fmt.Sprintf("%d", opts.Limit))
+		}
+		if opts.Lang != "" {
+			q.Set("lang", opts.Lang)
 		}
 	}
 
@@ -116,19 +125,16 @@ func (s *Service) Delete(ctx context.Context, categoryID int64) (*DeleteResult, 
 	return &result, nil
 }
 
-// GetProducts returns the product IDs assigned to a category.
+// GetProductOrder returns the sorted product IDs for a category.
 //
-// API: GET /categories/{categoryId}/products
+// API: GET /products/sort?parentCategory={categoryId}
 // Required scope: read_catalog
-func (s *Service) GetProducts(ctx context.Context, categoryID int64) (*ProductsResult, error) {
-	if categoryID == 0 {
-		return nil, errors.New("categoryID must not be zero")
-	}
+func (s *Service) GetProductOrder(ctx context.Context, categoryID int64) (*ProductOrderResult, error) {
+	q := url.Values{}
+	q.Set("parentCategory", fmt.Sprintf("%d", categoryID))
 
-	path := fmt.Sprintf("/categories/%d/products", categoryID)
-
-	var result ProductsResult
-	if err := s.requester.Get(ctx, path, nil, &result); err != nil {
+	var result ProductOrderResult
+	if err := s.requester.Get(ctx, "/products/sort", q, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

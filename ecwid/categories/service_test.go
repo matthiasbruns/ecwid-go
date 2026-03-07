@@ -57,7 +57,7 @@ func TestSearch_HiddenCategories(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	_, err := svc.Search(context.Background(), &categories.SearchOptions{HiddenCategories: true})
+	_, err := svc.Search(context.Background(), &categories.SearchOptions{HiddenCategories: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,23 +175,26 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestGetProducts(t *testing.T) {
+func TestGetProductOrder(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v3/12345/categories/42/products" {
+		if r.URL.Path != "/api/v3/12345/products/sort" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
+		if r.URL.Query().Get("parentCategory") != "42" {
+			t.Errorf("expected parentCategory=42, got %s", r.URL.Query().Get("parentCategory"))
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"productIds":[1,2,3]}`))
+		_, _ = w.Write([]byte(`{"sortedIds":[689454040,692730761,724894174]}`))
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.GetProducts(context.Background(), 42)
+	result, err := svc.GetProductOrder(context.Background(), 42)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.ProductIDs) != 3 {
-		t.Errorf("expected 3 product IDs, got %d", len(result.ProductIDs))
+	if len(result.SortedIDs) != 3 {
+		t.Errorf("expected 3 sorted IDs, got %d", len(result.SortedIDs))
 	}
 }
 
@@ -216,3 +219,5 @@ func TestSearch_Error(t *testing.T) {
 		t.Errorf("expected 401, got %d", apiErr.StatusCode)
 	}
 }
+
+func boolPtr(v bool) *bool { return &v }

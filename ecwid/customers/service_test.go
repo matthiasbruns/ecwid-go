@@ -130,7 +130,7 @@ func TestUpdate(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.Update(context.Background(), 10, &customers.Customer{FirstName: "Jane"})
+	result, err := svc.Update(context.Background(), 10, &customers.Customer{Name: "Jane"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestUpdate_ZeroID(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	_, err := svc.Update(context.Background(), 0, &customers.Customer{FirstName: "X"})
+	_, err := svc.Update(context.Background(), 0, &customers.Customer{Name: "X"})
 	if err == nil {
 		t.Fatal("expected error for zero customerID")
 	}
