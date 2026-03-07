@@ -8,11 +8,26 @@ Go client library and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-re
 ## Features
 
 - **Full Ecwid API coverage** — Products, Orders, Customers, Categories, Carts, Subscriptions, Promotions, Coupons, Reviews, Store Profile, Staff, Domains, Dictionaries, Reports
-- **Stdlib only** — Zero external dependencies in the client library
+- **Stdlib only** — Zero external dependencies in config and client modules
 - **Stateless** — No internal state; credentials passed explicitly per client
-- **CLI included** — Cobra-based CLI for quick terminal access
+- **Multi-module** — Clean separation: `config/`, `ecwid/`, `cli/` with independent `go.mod`s
+- **Configurable retry** — Optional auto-retry on 429 with `Retry-After` support
+- **CLI included** — Cobra-based CLI for terminal access
 - **Structured logging** — `slog` with JSON output, credentials never logged
 - **Fully tested** — Unit tests per endpoint + E2E tests against real stores
+
+## Project Structure
+
+```
+ecwid-go/
+├── config/     # Config loading (file + env + flags) — stdlib only
+├── ecwid/      # API client library — stdlib + config
+├── cli/        # Cobra CLI — config + ecwid + cobra
+├── e2e/        # E2E tests (future)
+└── go.work     # Go workspace
+```
+
+Three separate Go modules. Users importing only the client library get zero transitive dependencies beyond `config/`.
 
 ## Installation
 
@@ -25,12 +40,14 @@ go get github.com/matthiasbruns/ecwid-go/ecwid
 ### CLI
 
 ```bash
-go install github.com/matthiasbruns/ecwid-go/cmd/ecwid@latest
+go install github.com/matthiasbruns/ecwid-go/cli@latest
 ```
 
 ## Quick Start
 
-### Library Usage
+### Library Usage (planned — endpoints not yet implemented)
+
+> **Note:** The API service methods shown below are planned. The current bootstrap includes the client core, error types, and stub services. Endpoint implementations will follow in separate issues.
 
 ```go
 package main
@@ -40,16 +57,20 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/matthiasbruns/ecwid-go/config"
 	"github.com/matthiasbruns/ecwid-go/ecwid"
 )
 
 func main() {
-	client := ecwid.NewClient(ecwid.Config{
-		StoreID: "12345",
-		Token:   "secret_abc123",
-	})
+	cfg := config.Config{
+		StoreID:    "12345",
+		Token:      "secret_abc123",
+		MaxRetries: 3, // Auto-retry on 429
+	}
 
-	// Search products
+	client := ecwid.NewClient(cfg)
+
+	// Search products (planned)
 	resp, err := client.Products.Search(context.Background(), ecwid.SearchProductsRequest{
 		Keyword: "shirt",
 		Limit:   10,
@@ -61,38 +82,25 @@ func main() {
 	for _, p := range resp.Items {
 		fmt.Printf("%d: %s ($%.2f)\n", p.ID, p.Name, p.Price)
 	}
-
-	// Get a single order
-	order, err := client.Orders.Get(context.Background(), 78901)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Order #%s: %s\n", order.VendorNumber, order.PaymentStatus)
 }
 ```
 
-### CLI Usage
+### CLI Usage (planned — only `version` is implemented)
 
 ```bash
+# Currently available
+ecwid version
+
 # Set credentials via environment
 export ECWID_STORE_ID=12345
 export ECWID_TOKEN=secret_abc123
 
-# Or via config file (~/.ecwid.yaml)
-ecwid config init
-
-# Products
+# Planned commands (not yet implemented):
 ecwid products list --keyword "shirt" --limit 10
 ecwid products get 456789
-
-# Orders
 ecwid orders list --status PAID
 ecwid orders get 78901
-
-# Store profile
 ecwid profile get
-
-# Categories
 ecwid categories list --parent 0
 ```
 
@@ -105,9 +113,17 @@ store_id: "12345"
 token: "secret_abc123"
 output: json       # json | table
 log_level: info    # debug | info | warn | error
+max_retries: 3     # 0 = no retry
 ```
 
 > ⚠️ Set file permissions to `0600` — the file contains your API token.
+
+### Config Precedence
+
+1. CLI flags (`--store-id`, `--token`)
+2. Environment variables (`ECWID_STORE_ID`, `ECWID_TOKEN`)
+3. Config file (`~/.ecwid.yaml`)
+4. Defaults
 
 ## Error Handling
 
@@ -124,7 +140,8 @@ if err != nil {
         case 404:
             fmt.Println("Product not found")
         case 429:
-            fmt.Printf("Rate limited, retry after %s\n", apiErr.RetryAfter)
+            // Only if MaxRetries=0 (no auto-retry)
+            fmt.Println("Rate limited")
         default:
             fmt.Printf("API error %d: %s\n", apiErr.StatusCode, apiErr.Message)
         }
@@ -134,7 +151,10 @@ if err != nil {
 
 ## Rate Limiting
 
-Ecwid allows **600 requests/minute per token**. The client surfaces `429` responses as `*ecwid.RateLimitError` with the `Retry-After` value. It does **not** auto-retry — your code controls the backoff strategy.
+Ecwid allows **600 requests/minute per token**.
+
+- `MaxRetries: 0` (default): 429 responses surface as `*ecwid.RateLimitError` with `RetryAfter`.
+- `MaxRetries: N`: Client auto-retries up to N times, respecting `Retry-After` and context cancellation.
 
 ## API Coverage
 
@@ -162,37 +182,37 @@ Ecwid allows **600 requests/minute per token**. The client surfaces `429` respon
 ### Prerequisites
 
 - Go 1.26+
+- [Task](https://taskfile.dev/) (`go install github.com/go-task/task/v3/cmd/task@latest`)
+- [golangci-lint](https://golangci-lint.run/) v2+
 - [pre-commit](https://pre-commit.com/)
-- [golangci-lint](https://golangci-lint.run/)
 
 ### Setup
 
 ```bash
 git clone https://github.com/matthiasbruns/ecwid-go.git
 cd ecwid-go
-go mod download
 pre-commit install
 ```
 
 ### Commands
 
 ```bash
-make lint       # Run golangci-lint
-make test       # Run unit tests
-make e2e        # Run E2E tests (requires ECWID_STORE_ID + ECWID_TOKEN)
-make build      # Build CLI binary
-make all        # lint + test + build
+task lint       # Run golangci-lint across all modules
+task test       # Run unit tests with -race
+task e2e        # Run E2E tests (requires ECWID_STORE_ID + ECWID_TOKEN)
+task build      # Build CLI binary to ./bin/ecwid
+task all        # lint + test + build
 ```
 
 ### E2E Tests
 
-E2E tests run against a real Ecwid store. They're gated behind `ECWID_E2E=1`:
+E2E tests run against a real Ecwid store, gated behind `ECWID_E2E=1`:
 
 ```bash
 export ECWID_E2E=1
 export ECWID_STORE_ID=12345
 export ECWID_TOKEN=secret_abc123
-make e2e
+task e2e
 ```
 
 ## Contributing
@@ -200,7 +220,7 @@ make e2e
 1. Fork & clone
 2. Create a branch: `feat/your-feature`
 3. Use [conventional commits](https://www.conventionalcommits.org/)
-4. Ensure `make all` passes
+4. Ensure `task all` passes
 5. Open a PR — all PRs require review
 
 ## License

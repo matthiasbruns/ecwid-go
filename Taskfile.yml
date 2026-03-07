@@ -1,0 +1,69 @@
+version: '3'
+
+includes:
+  config:
+    taskfile: ./config/Taskfile.yml
+    dir: ./config
+  ecwid:
+    taskfile: ./ecwid/Taskfile.yml
+    dir: ./ecwid
+  cli:
+    taskfile: ./cli/Taskfile.yml
+    dir: ./cli
+
+tasks:
+  lint:
+    desc: Run golangci-lint across all modules
+    cmds:
+      - task: config:lint
+      - task: ecwid:lint
+      - task: cli:lint
+
+  lint:fix:
+    desc: Run golangci-lint with auto-fix across all modules
+    cmds:
+      - task: config:lint:fix
+      - task: ecwid:lint:fix
+      - task: cli:lint:fix
+
+  test:
+    desc: Run unit tests across all modules
+    cmds:
+      - task: config:test
+      - task: ecwid:test
+      - task: cli:test
+
+  tidy:
+    desc: Run go mod tidy across all modules
+    cmds:
+      - task: config:tidy
+      - task: ecwid:tidy
+      - task: cli:tidy
+
+  e2e:
+    desc: Run E2E tests against a real Ecwid store
+    env:
+      ECWID_E2E: '1'
+    cmds:
+      - go test ./e2e/... -race -count=1 -v
+
+  build:
+    desc: Build the CLI binary
+    cmds:
+      - mkdir -p ./bin
+      - go build -o ./bin/ecwid -ldflags "-X main.version={{.VERSION}}" ./cli/
+    vars:
+      VERSION:
+        sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+
+  all:
+    desc: Run lint, test, and build
+    cmds:
+      - task: lint
+      - task: test
+      - task: build
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf ./bin
