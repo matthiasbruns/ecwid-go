@@ -137,6 +137,31 @@ func TestOutputResult_Table_NilPointer(t *testing.T) {
 	}
 }
 
+func TestOutputResult_Table_SliceWithNilElements(t *testing.T) {
+	cmd := newCmdWithOutput("table")
+	p := &testProduct{ID: 1, Name: "Valid", Price: 5.0}
+	items := []*testProduct{nil, p, nil}
+	out := captureOutput(t, cmd, items)
+
+	// Should not panic; should contain header and the valid row.
+	if !strings.Contains(out, "ID") || !strings.Contains(out, "NAME") {
+		t.Errorf("expected table headers, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Valid") {
+		t.Errorf("expected non-nil row data, got:\n%s", out)
+	}
+}
+
+func TestOutputResult_Table_AllNilSlice(t *testing.T) {
+	cmd := newCmdWithOutput("table")
+	items := []*testProduct{nil, nil}
+	// Should fall back to JSON since no non-nil element found.
+	out := captureOutput(t, cmd, items)
+	if !strings.Contains(out, "null") {
+		t.Errorf("expected JSON fallback for all-nil slice, got:\n%s", out)
+	}
+}
+
 func TestOutputResult_InvalidFormat(t *testing.T) {
 	cmd := newCmdWithOutput("xml")
 	var buf bytes.Buffer

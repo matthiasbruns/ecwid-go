@@ -72,12 +72,23 @@ func outputTableSlice(cmd *cobra.Command, rv reflect.Value) error {
 		return err
 	}
 
-	// Determine element type (unwrap pointer elements).
-	first := rv.Index(0)
-	for first.Kind() == reflect.Ptr || first.Kind() == reflect.Interface {
-		first = first.Elem()
+	// Determine element type from the first non-nil element.
+	var first reflect.Value
+	for i := range rv.Len() {
+		candidate := rv.Index(i)
+		for candidate.Kind() == reflect.Ptr || candidate.Kind() == reflect.Interface {
+			if candidate.IsNil() {
+				candidate = reflect.Value{}
+				break
+			}
+			candidate = candidate.Elem()
+		}
+		if candidate.IsValid() && candidate.Kind() == reflect.Struct {
+			first = candidate
+			break
+		}
 	}
-	if first.Kind() != reflect.Struct {
+	if !first.IsValid() || first.Kind() != reflect.Struct {
 		return outputJSON(cmd, rv.Interface())
 	}
 
@@ -101,11 +112,17 @@ func outputTableSlice(cmd *cobra.Command, rv reflect.Value) error {
 	for i := range rv.Len() {
 		elem := rv.Index(i)
 		for elem.Kind() == reflect.Ptr || elem.Kind() == reflect.Interface {
+			if elem.IsNil() {
+				elem = reflect.Value{}
+				break
+			}
 			elem = elem.Elem()
 		}
 		vals := make([]string, len(cols))
-		for j, c := range cols {
-			vals[j] = formatField(elem.Field(c.index))
+		if elem.IsValid() {
+			for j, c := range cols {
+				vals[j] = formatField(elem.Field(c.index))
+			}
 		}
 		if _, err := fmt.Fprintln(w, strings.Join(vals, "\t")); err != nil {
 			return err
