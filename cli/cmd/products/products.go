@@ -136,6 +136,7 @@ var updateCmd = &cobra.Command{
 		if p.ID != 0 && p.ID != id {
 			return fmt.Errorf("product JSON id %d does not match argument %d", p.ID, id)
 		}
+		p.ID = id
 
 		resp, err := cmdutil.AppClient.Products.Update(cmd.Context(), id, &p)
 		if err != nil {

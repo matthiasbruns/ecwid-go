@@ -123,6 +123,7 @@ var updateCmd = &cobra.Command{
 		if c.ID != 0 && c.ID != id {
 			return fmt.Errorf("coupon JSON id %d does not match argument %d", c.ID, id)
 		}
+		c.ID = id
 
 		result, err := cmdutil.AppClient.Discounts.UpdateCoupon(cmd.Context(), id, &c)
 		if err != nil {

@@ -40,17 +40,17 @@ var listCmd = &cobra.Command{
 			opts.Status = v
 		}
 
-		customerID, err := cmdutil.GetNonNegativeInt64(cmd, "customer-id")
-		if err != nil {
+		if customerID, changed, err := cmdutil.GetPositiveInt64IfChanged(cmd, "customer-id"); err != nil {
 			return err
+		} else if changed {
+			opts.CustomerID = customerID
 		}
-		opts.CustomerID = customerID
 
-		productID, err := cmdutil.GetNonNegativeInt64(cmd, "product-id")
-		if err != nil {
+		if productID, changed, err := cmdutil.GetPositiveInt64IfChanged(cmd, "product-id"); err != nil {
 			return err
+		} else if changed {
+			opts.ProductID = productID
 		}
-		opts.ProductID = productID
 
 		result, err := cmdutil.AppClient.Subscriptions.Search(cmd.Context(), opts)
 		if err != nil {

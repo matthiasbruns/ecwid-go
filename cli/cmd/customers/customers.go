@@ -25,8 +25,15 @@ var listCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		keyword, _ := cmd.Flags().GetString("keyword")
 		email, _ := cmd.Flags().GetString("email")
-		limit, _ := cmd.Flags().GetInt("limit")
-		offset, _ := cmd.Flags().GetInt("offset")
+
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
+		}
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
+		}
 
 		opts := &apicustomers.SearchOptions{
 			Keyword: keyword,
@@ -122,6 +129,7 @@ var updateCmd = &cobra.Command{
 		if cust.ID != 0 && cust.ID != id {
 			return fmt.Errorf("customer JSON id %d does not match argument %d", cust.ID, id)
 		}
+		cust.ID = id
 
 		result, err := cmdutil.AppClient.Customers.Update(cmd.Context(), id, &cust)
 		if err != nil {

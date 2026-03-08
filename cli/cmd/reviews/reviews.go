@@ -39,11 +39,11 @@ var listCmd = &cobra.Command{
 			opts.Status = v
 		}
 
-		productID, err := cmdutil.GetNonNegativeInt64(cmd, "product-id")
-		if err != nil {
+		if productID, changed, err := cmdutil.GetPositiveInt64IfChanged(cmd, "product-id"); err != nil {
 			return err
+		} else if changed {
+			opts.ProductID = productID
 		}
-		opts.ProductID = productID
 
 		result, err := cmdutil.AppClient.Reviews.Search(cmd.Context(), opts)
 		if err != nil {
