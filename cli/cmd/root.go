@@ -7,16 +7,26 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/carts"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/categories"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/coupons"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/customers"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/dictionaries"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/domains"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/orders"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/products"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/profile"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/promotions"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/reports"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/reviews"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/staff"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/subscriptions"
 	"github.com/matthiasbruns/ecwid-go/cli/internal/cfg"
+	"github.com/matthiasbruns/ecwid-go/cli/internal/cmdutil"
 	"github.com/matthiasbruns/ecwid-go/ecwid"
 )
 
-var (
-	cfgFile string
-
-	// AppClient is the initialized Ecwid API client, available to subcommands.
-	AppClient *ecwid.Client
-)
+var cfgFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "ecwid",
@@ -40,7 +50,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		AppClient = ecwid.NewClient(loadedCfg, ecwid.WithLogger(slog.Default()))
+		cmdutil.AppClient = ecwid.NewClient(loadedCfg, ecwid.WithLogger(slog.Default()))
 		return nil
 	},
 }
@@ -56,6 +66,24 @@ func init() {
 	rootCmd.PersistentFlags().String("token", "", "API access token (env: ECWID_TOKEN)")
 	rootCmd.PersistentFlags().String("output", "", "output format: json|table (default: json)")
 	rootCmd.PersistentFlags().String("log-level", "", "log level: debug|info|warn|error (default: info)")
+
+	// Register domain commands.
+	rootCmd.AddCommand(
+		carts.Cmd,
+		categories.Cmd,
+		coupons.Cmd,
+		customers.Cmd,
+		dictionaries.Cmd,
+		domains.Cmd,
+		orders.Cmd,
+		products.Cmd,
+		profile.Cmd,
+		promotions.Cmd,
+		reports.Cmd,
+		reviews.Cmd,
+		staff.Cmd,
+		subscriptions.Cmd,
+	)
 }
 
 func setLogLevel(level string) {
