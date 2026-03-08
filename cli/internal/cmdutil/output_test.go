@@ -1,4 +1,4 @@
-package cmd
+package cmdutil
 
 import (
 	"bytes"
@@ -29,8 +29,8 @@ func captureOutput(t *testing.T, cmd *cobra.Command, v any) string {
 	t.Helper()
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
-	if err := outputResult(cmd, v); err != nil {
-		t.Fatalf("outputResult error: %v", err)
+	if err := OutputResult(cmd, v); err != nil {
+		t.Fatalf("OutputResult error: %v", err)
 	}
 	return buf.String()
 }
@@ -61,7 +61,6 @@ func TestOutputResult_JSON_Slice(t *testing.T) {
 }
 
 func TestOutputResult_JSON_Default(t *testing.T) {
-	// Empty output flag should default to json.
 	cmd := newCmdWithOutput("")
 	out := captureOutput(t, cmd, testProduct{ID: 1, Name: "X", Price: 0})
 
@@ -143,7 +142,6 @@ func TestOutputResult_Table_SliceWithNilElements(t *testing.T) {
 	items := []*testProduct{nil, p, nil}
 	out := captureOutput(t, cmd, items)
 
-	// Should not panic; should contain header and the valid row.
 	if !strings.Contains(out, "ID") || !strings.Contains(out, "NAME") {
 		t.Errorf("expected table headers, got:\n%s", out)
 	}
@@ -155,7 +153,6 @@ func TestOutputResult_Table_SliceWithNilElements(t *testing.T) {
 func TestOutputResult_Table_AllNilSlice(t *testing.T) {
 	cmd := newCmdWithOutput("table")
 	items := []*testProduct{nil, nil}
-	// Should fall back to JSON since no non-nil element found.
 	out := captureOutput(t, cmd, items)
 	if !strings.Contains(out, "null") {
 		t.Errorf("expected JSON fallback for all-nil slice, got:\n%s", out)
@@ -166,7 +163,7 @@ func TestOutputResult_InvalidFormat(t *testing.T) {
 	cmd := newCmdWithOutput("xml")
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
-	err := outputResult(cmd, testProduct{ID: 1})
+	err := OutputResult(cmd, testProduct{ID: 1})
 	if err == nil {
 		t.Fatal("expected error for unsupported format")
 	}

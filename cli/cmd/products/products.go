@@ -1,29 +1,29 @@
-package cmd
+package products
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
-	"github.com/matthiasbruns/ecwid-go/ecwid/products"
+	"github.com/matthiasbruns/ecwid-go/cli/internal/cmdutil"
+	apiproducts "github.com/matthiasbruns/ecwid-go/ecwid/products"
 )
 
-var productsCmd = &cobra.Command{
+// Cmd is the top-level products command.
+var Cmd = &cobra.Command{
 	Use:   "products",
 	Short: "Manage products",
 	Long:  "List, get, create, update, and delete products in your Ecwid store.",
 }
 
-var productsListCmd = &cobra.Command{
+var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Search products",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		opts := &products.SearchOptions{}
+		opts := &apiproducts.SearchOptions{}
 
 		if v, _ := cmd.Flags().GetString("keyword"); v != "" {
 			opts.Keyword = v
@@ -31,12 +31,18 @@ var productsListCmd = &cobra.Command{
 		if v, _ := cmd.Flags().GetInt64("category"); v > 0 {
 			opts.Category = v
 		}
-		if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-			opts.Limit = v
+
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
 		}
-		if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-			opts.Offset = v
+		opts.Limit = limit
+
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
 		}
+		opts.Offset = offset
 		if cmd.Flags().Changed("enabled") {
 			v, _ := cmd.Flags().GetBool("enabled")
 			opts.Enabled = &v
@@ -52,15 +58,15 @@ var productsListCmd = &cobra.Command{
 			opts.SortBy = v
 		}
 
-		resp, err := AppClient.Products.Search(cmd.Context(), opts)
+		resp, err := cmdutil.AppClient.Products.Search(cmd.Context(), opts)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, resp)
+		return cmdutil.OutputResult(cmd, resp)
 	},
 }
 
-var productsGetCmd = &cobra.Command{
+var getCmd = &cobra.Command{
 	Use:   "get <id>",
 	Short: "Get a product by ID",
 	Args:  cobra.ExactArgs(1),
@@ -73,38 +79,38 @@ var productsGetCmd = &cobra.Command{
 			return fmt.Errorf("invalid product ID: must be a positive integer")
 		}
 
-		resp, err := AppClient.Products.Get(cmd.Context(), id)
+		resp, err := cmdutil.AppClient.Products.Get(cmd.Context(), id)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, resp)
+		return cmdutil.OutputResult(cmd, resp)
 	},
 }
 
-var productsCreateCmd = &cobra.Command{
+var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a product (reads JSON from stdin or --file)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		data, err := readInput(cmd)
+		data, err := cmdutil.ReadInput(cmd)
 		if err != nil {
 			return err
 		}
 
-		var p products.Product
+		var p apiproducts.Product
 		if err := json.Unmarshal(data, &p); err != nil {
 			return fmt.Errorf("invalid product JSON: %w", err)
 		}
 
-		resp, err := AppClient.Products.Create(cmd.Context(), &p)
+		resp, err := cmdutil.AppClient.Products.Create(cmd.Context(), &p)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, resp)
+		return cmdutil.OutputResult(cmd, resp)
 	},
 }
 
-var productsUpdateCmd = &cobra.Command{
+var updateCmd = &cobra.Command{
 	Use:   "update <id>",
 	Short: "Update a product (reads JSON from stdin or --file)",
 	Args:  cobra.ExactArgs(1),
@@ -117,25 +123,30 @@ var productsUpdateCmd = &cobra.Command{
 			return fmt.Errorf("invalid product ID: must be a positive integer")
 		}
 
-		data, err := readInput(cmd)
+		data, err := cmdutil.ReadInput(cmd)
 		if err != nil {
 			return err
 		}
 
-		var p products.Product
+		var p apiproducts.Product
 		if err := json.Unmarshal(data, &p); err != nil {
 			return fmt.Errorf("invalid product JSON: %w", err)
 		}
 
-		resp, err := AppClient.Products.Update(cmd.Context(), id, &p)
+		if p.ID != 0 && p.ID != id {
+			return fmt.Errorf("product JSON id %d does not match argument %d", p.ID, id)
+		}
+		p.ID = id
+
+		resp, err := cmdutil.AppClient.Products.Update(cmd.Context(), id, &p)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, resp)
+		return cmdutil.OutputResult(cmd, resp)
 	},
 }
 
-var productsDeleteCmd = &cobra.Command{
+var deleteCmd = &cobra.Command{
 	Use:   "delete <id>",
 	Short: "Delete a product",
 	Args:  cobra.ExactArgs(1),
@@ -148,53 +159,32 @@ var productsDeleteCmd = &cobra.Command{
 			return fmt.Errorf("invalid product ID: must be a positive integer")
 		}
 
-		resp, err := AppClient.Products.Delete(cmd.Context(), id)
+		resp, err := cmdutil.AppClient.Products.Delete(cmd.Context(), id)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, resp)
+		return cmdutil.OutputResult(cmd, resp)
 	},
 }
 
-// readInput reads JSON input from --file flag or stdin.
-func readInput(cmd *cobra.Command) ([]byte, error) {
-	file, _ := cmd.Flags().GetString("file")
-	if file != "" {
-		data, err := os.ReadFile(file)
-		if err != nil {
-			return nil, fmt.Errorf("read file %q: %w", file, err)
-		}
-		return data, nil
-	}
-	data, err := io.ReadAll(cmd.InOrStdin())
-	if err != nil {
-		return nil, fmt.Errorf("read stdin: %w", err)
-	}
-	if len(data) == 0 {
-		return nil, fmt.Errorf("no input provided: specify --file or provide JSON on stdin")
-	}
-	return data, nil
-}
-
 func init() {
-	rootCmd.AddCommand(productsCmd)
-	productsCmd.AddCommand(productsListCmd)
-	productsCmd.AddCommand(productsGetCmd)
-	productsCmd.AddCommand(productsCreateCmd)
-	productsCmd.AddCommand(productsUpdateCmd)
-	productsCmd.AddCommand(productsDeleteCmd)
+	Cmd.AddCommand(listCmd)
+	Cmd.AddCommand(getCmd)
+	Cmd.AddCommand(createCmd)
+	Cmd.AddCommand(updateCmd)
+	Cmd.AddCommand(deleteCmd)
 
 	// List flags.
-	productsListCmd.Flags().String("keyword", "", "search keyword")
-	productsListCmd.Flags().Int64("category", 0, "filter by category ID")
-	productsListCmd.Flags().Int("limit", 0, "maximum number of results")
-	productsListCmd.Flags().Int("offset", 0, "offset for pagination")
-	productsListCmd.Flags().Bool("enabled", false, "filter by enabled status")
-	productsListCmd.Flags().Bool("in-stock", false, "filter by in-stock status")
-	productsListCmd.Flags().String("sku", "", "filter by SKU")
-	productsListCmd.Flags().String("sort-by", "", "sort order (e.g., NAME_ASC, PRICE_DESC)")
+	listCmd.Flags().String("keyword", "", "search keyword")
+	listCmd.Flags().Int64("category", 0, "filter by category ID")
+	listCmd.Flags().Int("limit", 0, "maximum number of results")
+	listCmd.Flags().Int("offset", 0, "offset for pagination")
+	listCmd.Flags().Bool("enabled", false, "filter by enabled status")
+	listCmd.Flags().Bool("in-stock", false, "filter by in-stock status")
+	listCmd.Flags().String("sku", "", "filter by SKU")
+	listCmd.Flags().String("sort-by", "", "sort order (e.g., NAME_ASC, PRICE_DESC)")
 
 	// Create/update flags.
-	productsCreateCmd.Flags().String("file", "", "path to JSON file (reads stdin if omitted)")
-	productsUpdateCmd.Flags().String("file", "", "path to JSON file (reads stdin if omitted)")
+	createCmd.Flags().String("file", "", "path to JSON file (reads stdin if omitted)")
+	updateCmd.Flags().String("file", "", "path to JSON file (reads stdin if omitted)")
 }

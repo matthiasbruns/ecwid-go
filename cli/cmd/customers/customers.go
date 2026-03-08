@@ -1,4 +1,4 @@
-package cmd
+package customers
 
 import (
 	"encoding/json"
@@ -8,45 +8,50 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/matthiasbruns/ecwid-go/ecwid/customers"
+	"github.com/matthiasbruns/ecwid-go/cli/internal/cmdutil"
+	apicustomers "github.com/matthiasbruns/ecwid-go/ecwid/customers"
 )
 
-var customersCmd = &cobra.Command{
+// Cmd is the top-level customers command.
+var Cmd = &cobra.Command{
 	Use:   "customers",
 	Short: "Manage Ecwid customers",
 }
 
-// customers list
-
-var customersListCmd = &cobra.Command{
+var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Search / list customers",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		keyword, _ := cmd.Flags().GetString("keyword")
 		email, _ := cmd.Flags().GetString("email")
-		limit, _ := cmd.Flags().GetInt("limit")
-		offset, _ := cmd.Flags().GetInt("offset")
 
-		opts := &customers.SearchOptions{
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
+		}
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
+		}
+
+		opts := &apicustomers.SearchOptions{
 			Keyword: keyword,
 			Email:   email,
 			Limit:   limit,
 			Offset:  offset,
 		}
 
-		result, err := AppClient.Customers.Search(cmd.Context(), opts)
+		result, err := cmdutil.AppClient.Customers.Search(cmd.Context(), opts)
 		if err != nil {
 			return err
 		}
 
-		return outputResult(cmd, result.Items)
+		return cmdutil.OutputResult(cmd, result.Items)
 	},
 }
 
-// customers get
-
-var customersGetCmd = &cobra.Command{
+var getCmd = &cobra.Command{
 	Use:   "get <customerID>",
 	Short: "Get a customer by ID",
 	Args:  cobra.ExactArgs(1),
@@ -59,18 +64,16 @@ var customersGetCmd = &cobra.Command{
 			return fmt.Errorf("invalid customer ID %q: must be a positive integer", args[0])
 		}
 
-		result, err := AppClient.Customers.Get(cmd.Context(), id)
+		result, err := cmdutil.AppClient.Customers.Get(cmd.Context(), id)
 		if err != nil {
 			return err
 		}
 
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-// customers create
-
-var customersCreateCmd = &cobra.Command{
+var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new customer (reads JSON from stdin)",
 	Args:  cobra.NoArgs,
@@ -83,23 +86,21 @@ var customersCreateCmd = &cobra.Command{
 			return fmt.Errorf("no input provided: pipe JSON to stdin")
 		}
 
-		var cust customers.Customer
+		var cust apicustomers.Customer
 		if err := json.Unmarshal(data, &cust); err != nil {
 			return fmt.Errorf("parse customer JSON: %w", err)
 		}
 
-		result, err := AppClient.Customers.Create(cmd.Context(), &cust)
+		result, err := cmdutil.AppClient.Customers.Create(cmd.Context(), &cust)
 		if err != nil {
 			return err
 		}
 
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-// customers update
-
-var customersUpdateCmd = &cobra.Command{
+var updateCmd = &cobra.Command{
 	Use:   "update <customerID>",
 	Short: "Update a customer by ID (reads JSON from stdin)",
 	Args:  cobra.ExactArgs(1),
@@ -120,23 +121,26 @@ var customersUpdateCmd = &cobra.Command{
 			return fmt.Errorf("no input provided: pipe JSON to stdin")
 		}
 
-		var cust customers.Customer
+		var cust apicustomers.Customer
 		if err := json.Unmarshal(data, &cust); err != nil {
 			return fmt.Errorf("parse customer JSON: %w", err)
 		}
 
-		result, err := AppClient.Customers.Update(cmd.Context(), id, &cust)
+		if cust.ID != 0 && cust.ID != id {
+			return fmt.Errorf("customer JSON id %d does not match argument %d", cust.ID, id)
+		}
+		cust.ID = id
+
+		result, err := cmdutil.AppClient.Customers.Update(cmd.Context(), id, &cust)
 		if err != nil {
 			return err
 		}
 
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-// customers delete
-
-var customersDeleteCmd = &cobra.Command{
+var deleteCmd = &cobra.Command{
 	Use:   "delete <customerID>",
 	Short: "Delete a customer by ID",
 	Args:  cobra.ExactArgs(1),
@@ -149,26 +153,20 @@ var customersDeleteCmd = &cobra.Command{
 			return fmt.Errorf("invalid customer ID %q: must be a positive integer", args[0])
 		}
 
-		result, err := AppClient.Customers.Delete(cmd.Context(), id)
+		result, err := cmdutil.AppClient.Customers.Delete(cmd.Context(), id)
 		if err != nil {
 			return err
 		}
 
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
 func init() {
-	customersListCmd.Flags().String("keyword", "", "Search keyword (name, email, etc.)")
-	customersListCmd.Flags().String("email", "", "Filter by email address")
-	customersListCmd.Flags().Int("limit", 0, "Maximum number of results")
-	customersListCmd.Flags().Int("offset", 0, "Offset for pagination")
+	listCmd.Flags().String("keyword", "", "Search keyword (name, email, etc.)")
+	listCmd.Flags().String("email", "", "Filter by email address")
+	listCmd.Flags().Int("limit", 0, "Maximum number of results")
+	listCmd.Flags().Int("offset", 0, "Offset for pagination")
 
-	customersCmd.AddCommand(customersListCmd)
-	customersCmd.AddCommand(customersGetCmd)
-	customersCmd.AddCommand(customersCreateCmd)
-	customersCmd.AddCommand(customersUpdateCmd)
-	customersCmd.AddCommand(customersDeleteCmd)
-
-	rootCmd.AddCommand(customersCmd)
+	Cmd.AddCommand(listCmd, getCmd, createCmd, updateCmd, deleteCmd)
 }

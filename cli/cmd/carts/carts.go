@@ -1,17 +1,19 @@
-package cmd
+package carts
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/matthiasbruns/ecwid-go/ecwid/carts"
+	"github.com/matthiasbruns/ecwid-go/cli/internal/cmdutil"
+	apicarts "github.com/matthiasbruns/ecwid-go/ecwid/carts"
 )
 
-var cartsCmd = &cobra.Command{
+// Cmd is the top-level carts command.
+var Cmd = &cobra.Command{
 	Use:   "carts",
 	Short: "Manage abandoned carts",
 }
 
-var cartsListCmd = &cobra.Command{
+var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List abandoned carts",
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -28,39 +30,39 @@ var cartsListCmd = &cobra.Command{
 			return err
 		}
 
-		opts := &carts.SearchOptions{
+		opts := &apicarts.SearchOptions{
 			CustomerID: customerID,
 			Limit:      limit,
 			Offset:     offset,
 		}
 
-		result, err := AppClient.Carts.Search(cmd.Context(), opts)
+		result, err := cmdutil.AppClient.Carts.Search(cmd.Context(), opts)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-var cartsGetCmd = &cobra.Command{
+var getCmd = &cobra.Command{
 	Use:   "get <cartId>",
 	Short: "Get an abandoned cart by ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := AppClient.Carts.Get(cmd.Context(), args[0])
+		result, err := cmdutil.AppClient.Carts.Get(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-var cartsUpdateCmd = &cobra.Command{
+var updateCmd = &cobra.Command{
 	Use:   "update <cartId>",
 	Short: "Update an abandoned cart",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		req := &carts.UpdateRequest{}
+		req := &apicarts.UpdateRequest{}
 		if cmd.Flags().Changed("hidden") {
 			hidden, err := cmd.Flags().GetBool("hidden")
 			if err != nil {
@@ -69,34 +71,33 @@ var cartsUpdateCmd = &cobra.Command{
 			req.Hidden = &hidden
 		}
 
-		result, err := AppClient.Carts.Update(cmd.Context(), args[0], req)
+		result, err := cmdutil.AppClient.Carts.Update(cmd.Context(), args[0], req)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-var cartsPlaceCmd = &cobra.Command{
+var placeCmd = &cobra.Command{
 	Use:   "place <cartId>",
 	Short: "Convert an abandoned cart into an order",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := AppClient.Carts.Place(cmd.Context(), args[0])
+		result, err := cmdutil.AppClient.Carts.Place(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
 func init() {
-	cartsListCmd.Flags().Int64("customer-id", 0, "Filter by customer ID")
-	cartsListCmd.Flags().Int("limit", 0, "Maximum number of carts to return (0 = API default)")
-	cartsListCmd.Flags().Int("offset", 0, "Number of carts to skip for pagination (0 = start from beginning)")
+	listCmd.Flags().Int64("customer-id", 0, "Filter by customer ID")
+	listCmd.Flags().Int("limit", 0, "Maximum number of carts to return (0 = API default)")
+	listCmd.Flags().Int("offset", 0, "Number of carts to skip for pagination (0 = start from beginning)")
 
-	cartsUpdateCmd.Flags().Bool("hidden", false, "Mark cart as hidden")
+	updateCmd.Flags().Bool("hidden", false, "Mark cart as hidden")
 
-	cartsCmd.AddCommand(cartsListCmd, cartsGetCmd, cartsUpdateCmd, cartsPlaceCmd)
-	rootCmd.AddCommand(cartsCmd)
+	Cmd.AddCommand(listCmd, getCmd, updateCmd, placeCmd)
 }

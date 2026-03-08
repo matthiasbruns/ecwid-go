@@ -1,4 +1,4 @@
-package cmd
+package categories
 
 import (
 	"fmt"
@@ -6,15 +6,15 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/matthiasbruns/ecwid-go/ecwid/categories"
+	"github.com/matthiasbruns/ecwid-go/cli/internal/cmdutil"
+	apicategories "github.com/matthiasbruns/ecwid-go/ecwid/categories"
 )
 
-var categoriesCmd = &cobra.Command{
+// Cmd is the top-level categories command.
+var Cmd = &cobra.Command{
 	Use:   "categories",
 	Short: "Manage store categories",
 }
-
-// categories list
 
 var (
 	catListKeyword string
@@ -23,27 +23,25 @@ var (
 	catListOffset  int
 )
 
-var categoriesListCmd = &cobra.Command{
+var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List categories",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		opts := &categories.SearchOptions{
+		opts := &apicategories.SearchOptions{
 			Keyword: catListKeyword,
 			Parent:  catListParent,
 			Limit:   catListLimit,
 			Offset:  catListOffset,
 		}
-		result, err := AppClient.Categories.Search(cmd.Context(), opts)
+		result, err := cmdutil.AppClient.Categories.Search(cmd.Context(), opts)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result.Items)
+		return cmdutil.OutputResult(cmd, result.Items)
 	},
 }
 
-// categories get
-
-var categoriesGetCmd = &cobra.Command{
+var getCmd = &cobra.Command{
 	Use:   "get <categoryId>",
 	Short: "Get a category by ID",
 	Args:  cobra.ExactArgs(1),
@@ -55,15 +53,13 @@ var categoriesGetCmd = &cobra.Command{
 		if id <= 0 {
 			return fmt.Errorf("category ID must be a positive integer, got %d", id)
 		}
-		result, err := AppClient.Categories.Get(cmd.Context(), id)
+		result, err := cmdutil.AppClient.Categories.Get(cmd.Context(), id)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
-
-// categories create
 
 var (
 	catCreateName        string
@@ -72,28 +68,26 @@ var (
 	catCreateEnabled     bool
 )
 
-var categoriesCreateCmd = &cobra.Command{
+var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new category",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if catCreateName == "" {
 			return fmt.Errorf("--name is required")
 		}
-		cat := &categories.Category{
+		cat := &apicategories.Category{
 			Name:        catCreateName,
 			ParentID:    catCreateParentID,
 			Description: catCreateDescription,
 			Enabled:     &catCreateEnabled,
 		}
-		result, err := AppClient.Categories.Create(cmd.Context(), cat)
+		result, err := cmdutil.AppClient.Categories.Create(cmd.Context(), cat)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
-
-// categories update
 
 var (
 	catUpdateName        string
@@ -102,7 +96,7 @@ var (
 	catUpdateEnabled     bool
 )
 
-var categoriesUpdateCmd = &cobra.Command{
+var updateCmd = &cobra.Command{
 	Use:   "update <categoryId>",
 	Short: "Update an existing category",
 	Args:  cobra.ExactArgs(1),
@@ -114,7 +108,7 @@ var categoriesUpdateCmd = &cobra.Command{
 		if id <= 0 {
 			return fmt.Errorf("category ID must be a positive integer, got %d", id)
 		}
-		cat := &categories.Category{}
+		cat := &apicategories.Category{}
 		if cmd.Flags().Changed("name") {
 			cat.Name = catUpdateName
 		}
@@ -133,17 +127,15 @@ var categoriesUpdateCmd = &cobra.Command{
 		if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("parent-id") && !cmd.Flags().Changed("description") && !cmd.Flags().Changed("enabled") {
 			return fmt.Errorf("no fields specified to update")
 		}
-		result, err := AppClient.Categories.Update(cmd.Context(), id, cat)
+		result, err := cmdutil.AppClient.Categories.Update(cmd.Context(), id, cat)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
-// categories delete
-
-var categoriesDeleteCmd = &cobra.Command{
+var deleteCmd = &cobra.Command{
 	Use:   "delete <categoryId>",
 	Short: "Delete a category by ID",
 	Args:  cobra.ExactArgs(1),
@@ -155,42 +147,33 @@ var categoriesDeleteCmd = &cobra.Command{
 		if id <= 0 {
 			return fmt.Errorf("category ID must be a positive integer, got %d", id)
 		}
-		result, err := AppClient.Categories.Delete(cmd.Context(), id)
+		result, err := cmdutil.AppClient.Categories.Delete(cmd.Context(), id)
 		if err != nil {
 			return err
 		}
-		return outputResult(cmd, result)
+		return cmdutil.OutputResult(cmd, result)
 	},
 }
 
 func init() {
 	// list flags
-	categoriesListCmd.Flags().StringVar(&catListKeyword, "keyword", "", "filter by keyword")
-	categoriesListCmd.Flags().Int64Var(&catListParent, "parent", 0, "filter by parent category ID")
-	categoriesListCmd.Flags().IntVar(&catListLimit, "limit", 0, "maximum number of results")
-	categoriesListCmd.Flags().IntVar(&catListOffset, "offset", 0, "result offset for pagination")
+	listCmd.Flags().StringVar(&catListKeyword, "keyword", "", "filter by keyword")
+	listCmd.Flags().Int64Var(&catListParent, "parent", 0, "filter by parent category ID")
+	listCmd.Flags().IntVar(&catListLimit, "limit", 0, "maximum number of results")
+	listCmd.Flags().IntVar(&catListOffset, "offset", 0, "result offset for pagination")
 
 	// create flags
-	categoriesCreateCmd.Flags().StringVar(&catCreateName, "name", "", "category name (required)")
-	_ = categoriesCreateCmd.MarkFlagRequired("name")
-	categoriesCreateCmd.Flags().Int64Var(&catCreateParentID, "parent-id", 0, "parent category ID")
-	categoriesCreateCmd.Flags().StringVar(&catCreateDescription, "description", "", "category description")
-	// Default true: new categories are enabled unless the caller opts out.
-	categoriesCreateCmd.Flags().BoolVar(&catCreateEnabled, "enabled", true, "whether the category is enabled")
+	createCmd.Flags().StringVar(&catCreateName, "name", "", "category name (required)")
+	_ = createCmd.MarkFlagRequired("name")
+	createCmd.Flags().Int64Var(&catCreateParentID, "parent-id", 0, "parent category ID")
+	createCmd.Flags().StringVar(&catCreateDescription, "description", "", "category description")
+	createCmd.Flags().BoolVar(&catCreateEnabled, "enabled", true, "whether the category is enabled")
 
 	// update flags
-	categoriesUpdateCmd.Flags().StringVar(&catUpdateName, "name", "", "category name")
-	categoriesUpdateCmd.Flags().Int64Var(&catUpdateParentID, "parent-id", 0, "parent category ID")
-	categoriesUpdateCmd.Flags().StringVar(&catUpdateDescription, "description", "", "category description")
-	// Default false here is irrelevant: the field is only sent when the flag is explicitly set.
-	categoriesUpdateCmd.Flags().BoolVar(&catUpdateEnabled, "enabled", false, "whether the category is enabled")
+	updateCmd.Flags().StringVar(&catUpdateName, "name", "", "category name")
+	updateCmd.Flags().Int64Var(&catUpdateParentID, "parent-id", 0, "parent category ID")
+	updateCmd.Flags().StringVar(&catUpdateDescription, "description", "", "category description")
+	updateCmd.Flags().BoolVar(&catUpdateEnabled, "enabled", false, "whether the category is enabled")
 
-	categoriesCmd.AddCommand(
-		categoriesListCmd,
-		categoriesGetCmd,
-		categoriesCreateCmd,
-		categoriesUpdateCmd,
-		categoriesDeleteCmd,
-	)
-	rootCmd.AddCommand(categoriesCmd)
+	Cmd.AddCommand(listCmd, getCmd, createCmd, updateCmd, deleteCmd)
 }

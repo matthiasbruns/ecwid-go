@@ -1,4 +1,4 @@
-package cmd
+package cmdutil
 
 import (
 	"encoding/json"
@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// outputResult writes v to cmd's stdout in the format specified by the --output flag.
+// OutputResult writes v to cmd's stdout in the format specified by the --output flag.
 // It supports "json" (pretty-printed, default) and "table" (human-readable columns).
 // v may be a struct, a pointer to a struct, or a slice of structs.
-func outputResult(cmd *cobra.Command, v any) error {
+func OutputResult(cmd *cobra.Command, v any) error {
 	format, _ := cmd.Flags().GetString("output")
 	if format == "" {
 		format = "json"
