@@ -134,7 +134,7 @@ type SearchOptions struct {
 	UpdatedTo                        string
 	Enabled                          *bool
 	InStock                          *bool
-	Sku                              string
+	SKU                              string
 	ProductID                        string
 	BaseURL                          string
 	CleanURLs                        *bool
@@ -237,9 +237,10 @@ type SortOrder struct {
 }
 
 // SortOrderUpdate holds fields for updating the product sort order.
+// ParentCategory is sent as a query parameter, not in the JSON body.
 type SortOrderUpdate struct {
 	SortedIDs      []int64 `json:"sortedIds"`
-	ParentCategory int64   `json:"parentCategory,omitempty"`
+	ParentCategory int64   `json:"-"`
 }
 
 // FiltersRequest holds the request body for the product filters endpoint.
@@ -318,23 +319,23 @@ type ProductFile struct {
 	AdminURL    string `json:"adminUrl,omitempty"`
 }
 
-// ProductFileUpdate holds fields for updating a product file.
+// ProductFileUpdate holds fields for updating a product file description.
 type ProductFileUpdate struct {
-	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
 // GalleryVideo represents a gallery video for a product.
 type GalleryVideo struct {
-	ID           int64  `json:"id"`
-	URL          string `json:"url,omitempty"`
-	ThumbnailURL string `json:"thumbnailUrl,omitempty"`
-	Title        string `json:"title,omitempty"`
-	Width        int    `json:"width,omitempty"`
-	Height       int    `json:"height,omitempty"`
-}
-
-// GalleryVideoUpdate holds fields for updating a gallery video.
-type GalleryVideoUpdate struct {
-	Title string `json:"title,omitempty"`
+	ID             int64  `json:"id"`
+	URL            string `json:"url,omitempty"`
+	Title          string `json:"title,omitempty"`
+	Width          int    `json:"width,omitempty"`
+	Height         int    `json:"height,omitempty"`
+	VideoCoverID   int64  `json:"videoCoverId,omitempty"`
+	EmbedHTML      string `json:"embedHtml,omitempty"`
+	ProviderName   string `json:"providerName,omitempty"`
+	Image160pxURL  string `json:"image160pxUrl,omitempty"`
+	Image400pxURL  string `json:"image400pxUrl,omitempty"`
+	Image800pxURL  string `json:"image800pxUrl,omitempty"`
+	Image1200pxURL string `json:"image1200pxUrl,omitempty"`
 }

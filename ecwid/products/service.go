@@ -64,8 +64,8 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.InStock != nil {
 			q.Set("inStock", fmt.Sprintf("%t", *opts.InStock))
 		}
-		if opts.Sku != "" {
-			q.Set("sku", opts.Sku)
+		if opts.SKU != "" {
+			q.Set("sku", opts.SKU)
 		}
 		if opts.ProductID != "" {
 			q.Set("productId", opts.ProductID)
@@ -452,30 +452,9 @@ func (s *Service) GetGalleryVideo(ctx context.Context, productID, galleryVideoID
 	return &result, nil
 }
 
-// UpdateGalleryVideo updates a gallery video.
-//
-// API: PUT /products/{productId}/gallery/video/{galleryVideoId}
-// Required scope: update_catalog
-func (s *Service) UpdateGalleryVideo(ctx context.Context, productID, galleryVideoID int64, video *GalleryVideoUpdate) (*UpdateResult, error) {
-	if productID == 0 {
-		return nil, errors.New("productID must not be zero")
-	}
-	if galleryVideoID == 0 {
-		return nil, errors.New("galleryVideoID must not be zero")
-	}
-
-	path := fmt.Sprintf("/products/%d/gallery/video/%d", productID, galleryVideoID)
-
-	var result UpdateResult
-	if err := s.requester.Put(ctx, path, video, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 // DeleteGalleryVideo deletes a gallery video.
 //
-// API: DELETE /products/{productId}/gallery/video/{galleryVideoId}
+// API: DELETE /products/{productId}/gallery/{galleryVideoId}
 // Required scope: update_catalog
 func (s *Service) DeleteGalleryVideo(ctx context.Context, productID, galleryVideoID int64) (*DeleteResult, error) {
 	if productID == 0 {
@@ -485,7 +464,7 @@ func (s *Service) DeleteGalleryVideo(ctx context.Context, productID, galleryVide
 		return nil, errors.New("galleryVideoID must not be zero")
 	}
 
-	path := fmt.Sprintf("/products/%d/gallery/video/%d", productID, galleryVideoID)
+	path := fmt.Sprintf("/products/%d/gallery/%d", productID, galleryVideoID)
 
 	var result DeleteResult
 	if err := s.requester.Delete(ctx, path, &result); err != nil {
@@ -514,32 +493,11 @@ func (s *Service) DeleteAllFiles(ctx context.Context, productID int64) (*DeleteR
 	return &result, nil
 }
 
-// GetFile returns a single product file by ID.
-//
-// API: GET /products/{productId}/files/{fileId}
-// Required scope: read_catalog
-func (s *Service) GetFile(ctx context.Context, productID, fileID int64) (*ProductFile, error) {
-	if productID == 0 {
-		return nil, errors.New("productID must not be zero")
-	}
-	if fileID == 0 {
-		return nil, errors.New("fileID must not be zero")
-	}
-
-	path := fmt.Sprintf("/products/%d/files/%d", productID, fileID)
-
-	var result ProductFile
-	if err := s.requester.Get(ctx, path, nil, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-// UpdateFile updates a product file's metadata.
+// UpdateFileDescription updates a product file's description.
 //
 // API: PUT /products/{productId}/files/{fileId}
 // Required scope: update_catalog
-func (s *Service) UpdateFile(ctx context.Context, productID, fileID int64, update *ProductFileUpdate) (*UpdateResult, error) {
+func (s *Service) UpdateFileDescription(ctx context.Context, productID, fileID int64, update *ProductFileUpdate) (*UpdateResult, error) {
 	if productID == 0 {
 		return nil, errors.New("productID must not be zero")
 	}
@@ -598,14 +556,17 @@ func (s *Service) UpdateMedia(ctx context.Context, productID int64, media *Media
 }
 
 // GetSortOrder returns the product sort order.
+// parentCategory 0 refers to the top-level storefront category.
 //
 // API: GET /products/sort
 // Required scope: read_catalog
 func (s *Service) GetSortOrder(ctx context.Context, parentCategory int64) (*SortOrder, error) {
-	q := url.Values{}
-	if parentCategory > 0 {
-		q.Set("parentCategory", fmt.Sprintf("%d", parentCategory))
+	if parentCategory < 0 {
+		return nil, errors.New("parentCategory must not be negative")
 	}
+
+	q := url.Values{}
+	q.Set("parentCategory", fmt.Sprintf("%d", parentCategory))
 
 	var result SortOrder
 	if err := s.requester.Get(ctx, "/products/sort", q, &result); err != nil {
@@ -615,12 +576,23 @@ func (s *Service) GetSortOrder(ctx context.Context, parentCategory int64) (*Sort
 }
 
 // UpdateSortOrder updates the product sort order.
+// ParentCategory is sent as a query parameter.
 //
 // API: PUT /products/sort
 // Required scope: update_catalog
 func (s *Service) UpdateSortOrder(ctx context.Context, sort *SortOrderUpdate) (*UpdateResult, error) {
+	if sort == nil {
+		return nil, errors.New("sort must not be nil")
+	}
+
+	path := fmt.Sprintf("/products/sort?parentCategory=%d", sort.ParentCategory)
+
+	body := struct {
+		SortedIDs []int64 `json:"sortedIds,omitempty"`
+	}{SortedIDs: sort.SortedIDs}
+
 	var result UpdateResult
-	if err := s.requester.Put(ctx, "/products/sort", sort, &result); err != nil {
+	if err := s.requester.Put(ctx, path, &body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

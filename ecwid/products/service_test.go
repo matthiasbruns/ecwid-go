@@ -724,35 +724,12 @@ func TestGetGalleryVideo_ZeroVideoID(t *testing.T) {
 	}
 }
 
-func TestUpdateGalleryVideo(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
-			t.Errorf("expected PUT, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v3/12345/products/42/gallery/video/7" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"updateCount":1}`))
-	}))
-	defer srv.Close()
-
-	svc := newTestService(t, srv)
-	result, err := svc.UpdateGalleryVideo(context.Background(), 42, 7, &products.GalleryVideoUpdate{Title: "New Title"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.UpdateCount != 1 {
-		t.Errorf("expected updateCount=1, got %d", result.UpdateCount)
-	}
-}
-
 func TestDeleteGalleryVideo(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			t.Errorf("expected DELETE, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v3/12345/products/42/gallery/video/7" {
+		if r.URL.Path != "/api/v3/12345/products/42/gallery/7" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -819,46 +796,7 @@ func TestDeleteAllFiles_ZeroID(t *testing.T) {
 	}
 }
 
-func TestGetFile(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v3/12345/products/42/files/3" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":3,"name":"manual.pdf","size":1024}`))
-	}))
-	defer srv.Close()
-
-	svc := newTestService(t, srv)
-	file, err := svc.GetFile(context.Background(), 42, 3)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if file.Name != "manual.pdf" {
-		t.Errorf("expected manual.pdf, got %s", file.Name)
-	}
-	if file.Size != 1024 {
-		t.Errorf("expected size=1024, got %d", file.Size)
-	}
-}
-
-func TestGetFile_ZeroProductID(t *testing.T) {
-	svc := products.NewService(nil)
-	_, err := svc.GetFile(context.Background(), 0, 3)
-	if err == nil {
-		t.Fatal("expected error for zero productID")
-	}
-}
-
-func TestGetFile_ZeroFileID(t *testing.T) {
-	svc := products.NewService(nil)
-	_, err := svc.GetFile(context.Background(), 42, 0)
-	if err == nil {
-		t.Fatal("expected error for zero fileID")
-	}
-}
-
-func TestUpdateFile(t *testing.T) {
+func TestUpdateFileDescription(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("expected PUT, got %s", r.Method)
@@ -872,7 +810,7 @@ func TestUpdateFile(t *testing.T) {
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.UpdateFile(context.Background(), 42, 3, &products.ProductFileUpdate{Name: "updated.pdf"})
+	result, err := svc.UpdateFileDescription(context.Background(), 42, 3, &products.ProductFileUpdate{Description: "updated description"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -976,13 +914,44 @@ func TestGetSortOrder(t *testing.T) {
 	}
 }
 
+func TestGetSortOrder_ZeroParentCategory(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/12345/products/sort" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("parentCategory") != "0" {
+			t.Errorf("expected parentCategory=0, got %q", r.URL.Query().Get("parentCategory"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sortedIds":[1,2,3]}`))
+	}))
+	defer srv.Close()
+
+	svc := newTestService(t, srv)
+	result, err := svc.GetSortOrder(context.Background(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.SortedIDs) != 3 {
+		t.Errorf("expected 3 sorted IDs, got %d", len(result.SortedIDs))
+	}
+}
+
+func TestGetSortOrder_NegativeParentCategory(t *testing.T) {
+	svc := products.NewService(nil)
+	_, err := svc.GetSortOrder(context.Background(), -1)
+	if err == nil {
+		t.Fatal("expected error for negative parentCategory")
+	}
+}
+
 func TestUpdateSortOrder(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("expected PUT, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v3/12345/products/sort" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
+		if r.URL.Query().Get("parentCategory") != "5" {
+			t.Errorf("expected parentCategory=5, got %q", r.URL.Query().Get("parentCategory"))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"updateCount":1}`))
@@ -999,6 +968,14 @@ func TestUpdateSortOrder(t *testing.T) {
 	}
 	if result.UpdateCount != 1 {
 		t.Errorf("expected updateCount=1, got %d", result.UpdateCount)
+	}
+}
+
+func TestUpdateSortOrder_Nil(t *testing.T) {
+	svc := products.NewService(nil)
+	_, err := svc.UpdateSortOrder(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error for nil sort")
 	}
 }
 
