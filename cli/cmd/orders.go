@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/matthiasbruns/ecwid-go/ecwid/orders"
 	"github.com/spf13/cobra"
+
+	"github.com/matthiasbruns/ecwid-go/ecwid/orders"
 )
 
 var ordersCmd = &cobra.Command{
@@ -126,6 +127,9 @@ func readJSONInput(cmd *cobra.Command) ([]byte, error) {
 	raw, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
+	}
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("no input: use --data flag or pipe JSON to stdin")
 	}
 	return raw, nil
 }

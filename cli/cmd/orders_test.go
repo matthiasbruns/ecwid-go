@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/matthiasbruns/ecwid-go/config"
 	"github.com/matthiasbruns/ecwid-go/ecwid"
-	"github.com/spf13/cobra"
 )
 
 // newOrdersTestClient creates an ecwid.Client pointing at the given test server.
@@ -25,7 +26,7 @@ func newOrdersTestClient(t *testing.T, srv *httptest.Server) *ecwid.Client {
 	})
 }
 
-// newCmdWithContext creates a cobra test command with output format and a background context.
+// newTestCmdWithContext creates a cobra test command with output format and a background context.
 func newTestCmdWithContext(format string) *cobra.Command {
 	cmd := newCmdWithOutput(format)
 	cmd.SetContext(context.Background())
@@ -177,6 +178,40 @@ func TestOrdersCreateCmd_Stdin(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "ORD-1") {
 		t.Errorf("expected order ID in output, got:\n%s", out)
+	}
+}
+
+func TestOrdersUpdateCmd_Stdin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v3/12345/orders/ORD-7" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"updateCount":1}`))
+	}))
+	defer srv.Close()
+
+	AppClient = newOrdersTestClient(t, srv)
+
+	payload := `{"fulfillmentStatus":"SHIPPED"}`
+
+	cmd := newTestCmdWithContext("json")
+	cmd.Flags().String("data", "", "")
+	cmd.SetIn(strings.NewReader(payload))
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	err := ordersUpdateCmd.RunE(cmd, []string{"ORD-7"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "updateCount") {
+		t.Errorf("expected updateCount in output, got:\n%s", out)
 	}
 }
 
