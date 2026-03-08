@@ -20,6 +20,7 @@ import (
 	"github.com/matthiasbruns/ecwid-go/ecwid/domains"
 	"github.com/matthiasbruns/ecwid-go/ecwid/internal/api"
 	"github.com/matthiasbruns/ecwid-go/ecwid/orders"
+	"github.com/matthiasbruns/ecwid-go/ecwid/products"
 	"github.com/matthiasbruns/ecwid-go/ecwid/profile"
 	"github.com/matthiasbruns/ecwid-go/ecwid/reports"
 	"github.com/matthiasbruns/ecwid-go/ecwid/reviews"
@@ -36,6 +37,7 @@ type Client struct {
 	Discounts     *discounts.Service
 	Domains       *domains.Service
 	Orders        *orders.Service
+	Products      *products.Service
 	Profile       *profile.Service
 	Reports       *reports.Service
 	Reviews       *reviews.Service
@@ -99,6 +101,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 		Discounts:     discounts.NewService(requester),
 		Domains:       domains.NewService(requester),
 		Orders:        orders.NewService(requester),
+		Products:      products.NewService(requester),
 		Profile:       profile.NewService(requester),
 		Reports:       reports.NewService(requester),
 		Reviews:       reviews.NewService(requester),
