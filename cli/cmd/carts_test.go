@@ -122,11 +122,39 @@ func TestCartsGetCmd_JSON(t *testing.T) {
 }
 
 func TestCartsGetCmd_MissingArg(t *testing.T) {
-	client := newTestClientFromServer(t, httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	})))
+	}))
+	t.Cleanup(srv.Close)
 
+	client := newTestClientFromServer(t, srv)
 	_, err := executeCartsCmd(t, client, []string{"carts", "get"})
+	if err == nil {
+		t.Fatal("expected error when cartId arg is missing")
+	}
+}
+
+func TestCartsUpdateCmd_MissingArg(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := newTestClientFromServer(t, srv)
+	_, err := executeCartsCmd(t, client, []string{"carts", "update"})
+	if err == nil {
+		t.Fatal("expected error when cartId arg is missing")
+	}
+}
+
+func TestCartsPlaceCmd_MissingArg(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := newTestClientFromServer(t, srv)
+	_, err := executeCartsCmd(t, client, []string{"carts", "place"})
 	if err == nil {
 		t.Fatal("expected error when cartId arg is missing")
 	}
