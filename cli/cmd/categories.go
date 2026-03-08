@@ -52,6 +52,9 @@ var categoriesGetCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid category ID %q: %w", args[0], err)
 		}
+		if id <= 0 {
+			return fmt.Errorf("category ID must be a positive integer, got %d", id)
+		}
 		result, err := AppClient.Categories.Get(cmd.Context(), id)
 		if err != nil {
 			return err
@@ -108,6 +111,9 @@ var categoriesUpdateCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid category ID %q: %w", args[0], err)
 		}
+		if id <= 0 {
+			return fmt.Errorf("category ID must be a positive integer, got %d", id)
+		}
 		cat := &categories.Category{}
 		if cmd.Flags().Changed("name") {
 			cat.Name = catUpdateName
@@ -120,6 +126,12 @@ var categoriesUpdateCmd = &cobra.Command{
 		}
 		if cmd.Flags().Changed("enabled") {
 			cat.Enabled = &catUpdateEnabled
+		}
+		if cmd.Flags().Changed("parent-id") && catUpdateParentID == 0 {
+			return fmt.Errorf("--parent-id 0 is not supported: parentId=0 cannot be expressed in the request payload")
+		}
+		if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("parent-id") && !cmd.Flags().Changed("description") && !cmd.Flags().Changed("enabled") {
+			return fmt.Errorf("no fields specified to update")
 		}
 		result, err := AppClient.Categories.Update(cmd.Context(), id, cat)
 		if err != nil {
@@ -140,6 +152,9 @@ var categoriesDeleteCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid category ID %q: %w", args[0], err)
 		}
+		if id <= 0 {
+			return fmt.Errorf("category ID must be a positive integer, got %d", id)
+		}
 		result, err := AppClient.Categories.Delete(cmd.Context(), id)
 		if err != nil {
 			return err
@@ -157,6 +172,7 @@ func init() {
 
 	// create flags
 	categoriesCreateCmd.Flags().StringVar(&catCreateName, "name", "", "category name (required)")
+	_ = categoriesCreateCmd.MarkFlagRequired("name")
 	categoriesCreateCmd.Flags().Int64Var(&catCreateParentID, "parent-id", 0, "parent category ID")
 	categoriesCreateCmd.Flags().StringVar(&catCreateDescription, "description", "", "category description")
 	// Default true: new categories are enabled unless the caller opts out.
