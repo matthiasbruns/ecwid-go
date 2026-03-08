@@ -40,8 +40,8 @@ func (s *Service) Search(ctx context.Context, opts *SearchOptions) (*SearchResul
 		if opts.Category > 0 {
 			q.Set("category", fmt.Sprintf("%d", opts.Category))
 		}
-		if opts.WithSubcategories != nil && *opts.WithSubcategories {
-			q.Set("withSubcategories", "true")
+		if opts.IncludeProductsFromSubcategories != nil && *opts.IncludeProductsFromSubcategories {
+			q.Set("includeProductsFromSubcategories", "true")
 		}
 		if opts.SortBy != "" {
 			q.Set("sortBy", opts.SortBy)
@@ -163,22 +163,12 @@ func (s *Service) Delete(ctx context.Context, productID int64) (*DeleteResult, e
 	return &result, nil
 }
 
-// DeleteMultiple deletes multiple products by their IDs.
+// DeleteAll deletes all products in the store.
 //
-// API: DELETE /products?productId=1,2,3
-// Required scope: update_catalog
-func (s *Service) DeleteMultiple(ctx context.Context, productIDs string) (*DeleteResult, error) {
-	if productIDs == "" {
-		return nil, errors.New("productIDs must not be empty")
-	}
-
-	path := "/products?productId=" + url.QueryEscape(productIDs)
-
-	var result DeleteResult
-	if err := s.requester.Delete(ctx, path, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+// API: DELETE /products
+// Required scope: update_catalog_batch_delete
+func (s *Service) DeleteAll(ctx context.Context) error {
+	return s.requester.Delete(ctx, "/products", nil)
 }
 
 // ── Variations (Combinations) ───────────────────────────────────────────
@@ -302,29 +292,29 @@ func (s *Service) DeleteAllCombinations(ctx context.Context, productID int64) (*
 
 // ── Inventory ───────────────────────────────────────────────────────────
 
-// UpdateInventory updates inventory for a product.
+// AdjustInventory adjusts stock for a product by a delta value.
 //
 // API: PUT /products/{productId}/inventory
 // Required scope: update_catalog
-func (s *Service) UpdateInventory(ctx context.Context, productID int64, inv *InventoryUpdate) (*UpdateResult, error) {
+func (s *Service) AdjustInventory(ctx context.Context, productID int64, adj *InventoryAdjust) (*InventoryAdjustResult, error) {
 	if productID == 0 {
 		return nil, errors.New("productID must not be zero")
 	}
 
 	path := fmt.Sprintf("/products/%d/inventory", productID)
 
-	var result UpdateResult
-	if err := s.requester.Put(ctx, path, inv, &result); err != nil {
+	var result InventoryAdjustResult
+	if err := s.requester.Put(ctx, path, adj, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-// UpdateCombinationInventory updates inventory for a variation.
+// AdjustCombinationInventory adjusts stock for a variation by a delta value.
 //
 // API: PUT /products/{productId}/combinations/{combinationId}/inventory
 // Required scope: update_catalog
-func (s *Service) UpdateCombinationInventory(ctx context.Context, productID, combinationID int64, inv *InventoryUpdate) (*UpdateResult, error) {
+func (s *Service) AdjustCombinationInventory(ctx context.Context, productID, combinationID int64, adj *InventoryAdjust) (*InventoryAdjustResult, error) {
 	if productID == 0 {
 		return nil, errors.New("productID must not be zero")
 	}
@@ -334,8 +324,8 @@ func (s *Service) UpdateCombinationInventory(ctx context.Context, productID, com
 
 	path := fmt.Sprintf("/products/%d/combinations/%d/inventory", productID, combinationID)
 
-	var result UpdateResult
-	if err := s.requester.Put(ctx, path, inv, &result); err != nil {
+	var result InventoryAdjustResult
+	if err := s.requester.Put(ctx, path, adj, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -668,19 +658,9 @@ func (s *Service) GetDeleted(ctx context.Context, opts *DeletedProductsOptions) 
 //
 // API: POST /products/filters
 // Required scope: read_catalog
-func (s *Service) GetFilters(ctx context.Context, opts *SearchOptions) (*FiltersResult, error) {
-	q := url.Values{}
-	if opts != nil {
-		if opts.Keyword != "" {
-			q.Set("keyword", opts.Keyword)
-		}
-		if opts.Category > 0 {
-			q.Set("category", fmt.Sprintf("%d", opts.Category))
-		}
-	}
-
+func (s *Service) GetFilters(ctx context.Context, req *FiltersRequest) (*FiltersResult, error) {
 	var result FiltersResult
-	if err := s.requester.Post(ctx, "/products/filters", q, &result); err != nil {
+	if err := s.requester.Post(ctx, "/products/filters", req, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -771,23 +751,23 @@ func (s *Service) DeleteClass(ctx context.Context, classID int64) (*DeleteResult
 // ListBrands returns all product brands.
 //
 // API: GET /brands
-// Required scope: read_catalog
-func (s *Service) ListBrands(ctx context.Context) ([]Brand, error) {
-	var result []Brand
+// Required scope: read_brands
+func (s *Service) ListBrands(ctx context.Context) (*BrandsResult, error) {
+	var result BrandsResult
 	if err := s.requester.Get(ctx, "/brands", nil, &result); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return &result, nil
 }
 
-// ListSwatches returns all product swatches.
+// ListSwatches returns recently used product swatches.
 //
 // API: GET /swatches
 // Required scope: read_catalog
-func (s *Service) ListSwatches(ctx context.Context) ([]Swatch, error) {
-	var result []Swatch
+func (s *Service) ListSwatches(ctx context.Context) (*SwatchesResult, error) {
+	var result SwatchesResult
 	if err := s.requester.Get(ctx, "/swatches", nil, &result); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return &result, nil
 }

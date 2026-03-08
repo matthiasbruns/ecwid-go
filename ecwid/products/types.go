@@ -120,26 +120,26 @@ type SearchResult struct {
 
 // SearchOptions holds query parameters for searching products.
 type SearchOptions struct {
-	Keyword           string
-	PriceFrom         *float64
-	PriceTo           *float64
-	Category          int64
-	WithSubcategories *bool
-	SortBy            string
-	Offset            int
-	Limit             int
-	CreatedFrom       string
-	CreatedTo         string
-	UpdatedFrom       string
-	UpdatedTo         string
-	Enabled           *bool
-	InStock           *bool
-	Sku               string
-	ProductID         string
-	BaseURL           string
-	CleanURLs         *bool
-	Lang              string
-	ResponseFields    string
+	Keyword                          string
+	PriceFrom                        *float64
+	PriceTo                          *float64
+	Category                         int64
+	IncludeProductsFromSubcategories *bool
+	SortBy                           string
+	Offset                           int
+	Limit                            int
+	CreatedFrom                      string
+	CreatedTo                        string
+	UpdatedFrom                      string
+	UpdatedTo                        string
+	Enabled                          *bool
+	InStock                          *bool
+	Sku                              string
+	ProductID                        string
+	BaseURL                          string
+	CleanURLs                        *bool
+	Lang                             string
+	ResponseFields                   string
 }
 
 // CreateResult represents the response from creating a product.
@@ -197,12 +197,15 @@ type CombinationCreateResult struct {
 	ID int64 `json:"id"`
 }
 
-// InventoryUpdate holds fields for updating product or variation inventory.
-type InventoryUpdate struct {
-	Quantity     *int  `json:"quantity,omitempty"`
-	Unlimited    *bool `json:"unlimited,omitempty"`
-	WarningLimit *int  `json:"warningLimit,omitempty"`
-	InStock      *bool `json:"inStock,omitempty"`
+// InventoryAdjust holds the delta for adjusting product or variation stock.
+type InventoryAdjust struct {
+	QuantityDelta int `json:"quantityDelta"`
+}
+
+// InventoryAdjustResult represents the response from adjusting inventory.
+type InventoryAdjustResult struct {
+	UpdateCount int    `json:"updateCount"`
+	Warning     string `json:"warning,omitempty"`
 }
 
 // DeletedProductsResult is the paginated response for deleted products history.
@@ -239,9 +242,24 @@ type SortOrderUpdate struct {
 	ParentCategory int64   `json:"parentCategory,omitempty"`
 }
 
+// FiltersRequest holds the request body for the product filters endpoint.
+type FiltersRequest struct {
+	Params *FiltersParams `json:"params,omitempty"`
+}
+
+// FiltersParams holds filtering parameters.
+type FiltersParams struct {
+	FilterFields                     string `json:"filterFields,omitempty"`
+	Enabled                          string `json:"enabled,omitempty"`
+	FilterFacetLimit                 string `json:"filterFacetLimit,omitempty"`
+	IncludeProductsFromSubcategories string `json:"includeProductsFromSubcategories,omitempty"`
+	Lang                             string `json:"lang,omitempty"`
+}
+
 // FiltersResult represents the response from the product filters endpoint.
 type FiltersResult struct {
-	Filters json.RawMessage `json:"filters,omitempty"`
+	ProductCount int             `json:"productCount,omitempty"`
+	Filters      json.RawMessage `json:"filters,omitempty"`
 }
 
 // ProductClass represents a product type/class.
@@ -259,24 +277,30 @@ type ProductClassCreateResult struct {
 
 // Brand represents a product brand.
 type Brand struct {
-	Name         string `json:"name"`
-	ProductCount int    `json:"productCount,omitempty"`
+	Name                       string           `json:"name"`
+	NameTranslated             *json.RawMessage `json:"nameTranslated,omitempty"`
+	ProductsFilteredByBrandURL string           `json:"productsFilteredByBrandUrl,omitempty"`
 }
 
-// BrandsResult represents the response from listing brands.
+// BrandsResult is the paginated response from the brands search API.
 type BrandsResult struct {
-	Brands []Brand `json:"brands,omitempty"`
+	Total  int     `json:"total"`
+	Count  int     `json:"count"`
+	Offset int     `json:"offset"`
+	Limit  int     `json:"limit"`
+	Items  []Brand `json:"items"`
 }
 
-// Swatch represents a product swatch/color option.
-type Swatch struct {
-	Name   string          `json:"name,omitempty"`
-	Colors json.RawMessage `json:"colors,omitempty"`
+// SwatchColor represents a single swatch color option.
+type SwatchColor struct {
+	Name         string           `json:"name,omitempty"`
+	HexCode      string           `json:"hexCode,omitempty"`
+	Translations *json.RawMessage `json:"translations,omitempty"`
 }
 
 // SwatchesResult represents the response from listing swatches.
 type SwatchesResult struct {
-	Swatches []Swatch `json:"swatches,omitempty"`
+	Colors []SwatchColor `json:"colors,omitempty"`
 }
 
 // MediaUpdate holds fields for updating product media.

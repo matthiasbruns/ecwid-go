@@ -221,34 +221,22 @@ func TestDelete_ZeroID(t *testing.T) {
 	}
 }
 
-func TestDeleteMultiple(t *testing.T) {
+func TestDeleteAll(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			t.Errorf("expected DELETE, got %s", r.Method)
 		}
-		if r.URL.Query().Get("productId") != "1,2,3" {
-			t.Errorf("expected productId=1,2,3, got %q", r.URL.Query().Get("productId"))
+		if r.URL.Path != "/api/v3/12345/products" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"deleteCount":3}`))
+		w.WriteHeader(http.StatusAccepted)
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.DeleteMultiple(context.Background(), "1,2,3")
+	err := svc.DeleteAll(context.Background())
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.DeleteCount != 3 {
-		t.Errorf("expected deleteCount=3, got %d", result.DeleteCount)
-	}
-}
-
-func TestDeleteMultiple_EmptyIDs(t *testing.T) {
-	svc := products.NewService(nil)
-	_, err := svc.DeleteMultiple(context.Background(), "")
-	if err == nil {
-		t.Fatal("expected error for empty productIDs")
 	}
 }
 
@@ -463,7 +451,7 @@ func TestDeleteAllCombinations_ZeroID(t *testing.T) {
 
 // ── Inventory ───────────────────────────────────────────────────────────
 
-func TestUpdateInventory(t *testing.T) {
+func TestAdjustInventory(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("expected PUT, got %s", r.Method)
@@ -476,9 +464,8 @@ func TestUpdateInventory(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	qty := 50
 	svc := newTestService(t, srv)
-	result, err := svc.UpdateInventory(context.Background(), 42, &products.InventoryUpdate{Quantity: &qty})
+	result, err := svc.AdjustInventory(context.Background(), 42, &products.InventoryAdjust{QuantityDelta: -10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,15 +474,15 @@ func TestUpdateInventory(t *testing.T) {
 	}
 }
 
-func TestUpdateInventory_ZeroID(t *testing.T) {
+func TestAdjustInventory_ZeroID(t *testing.T) {
 	svc := products.NewService(nil)
-	_, err := svc.UpdateInventory(context.Background(), 0, nil)
+	_, err := svc.AdjustInventory(context.Background(), 0, nil)
 	if err == nil {
 		t.Fatal("expected error for zero productID")
 	}
 }
 
-func TestUpdateCombinationInventory(t *testing.T) {
+func TestAdjustCombinationInventory(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("expected PUT, got %s", r.Method)
@@ -508,9 +495,8 @@ func TestUpdateCombinationInventory(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	qty := 25
 	svc := newTestService(t, srv)
-	result, err := svc.UpdateCombinationInventory(context.Background(), 42, 10, &products.InventoryUpdate{Quantity: &qty})
+	result, err := svc.AdjustCombinationInventory(context.Background(), 42, 10, &products.InventoryAdjust{QuantityDelta: 5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -519,17 +505,17 @@ func TestUpdateCombinationInventory(t *testing.T) {
 	}
 }
 
-func TestUpdateCombinationInventory_ZeroProductID(t *testing.T) {
+func TestAdjustCombinationInventory_ZeroProductID(t *testing.T) {
 	svc := products.NewService(nil)
-	_, err := svc.UpdateCombinationInventory(context.Background(), 0, 10, nil)
+	_, err := svc.AdjustCombinationInventory(context.Background(), 0, 10, nil)
 	if err == nil {
 		t.Fatal("expected error for zero productID")
 	}
 }
 
-func TestUpdateCombinationInventory_ZeroCombinationID(t *testing.T) {
+func TestAdjustCombinationInventory_ZeroCombinationID(t *testing.T) {
 	svc := products.NewService(nil)
-	_, err := svc.UpdateCombinationInventory(context.Background(), 42, 0, nil)
+	_, err := svc.AdjustCombinationInventory(context.Background(), 42, 0, nil)
 	if err == nil {
 		t.Fatal("expected error for zero combinationID")
 	}
@@ -1048,14 +1034,21 @@ func TestGetFilters(t *testing.T) {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"filters":{"price":{"min":0,"max":100}}}`))
+		_, _ = w.Write([]byte(`{"productCount":2,"filters":{"price":{"minValue":0,"maxValue":100,"status":"SUCCESS"}}}`))
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	result, err := svc.GetFilters(context.Background(), nil)
+	result, err := svc.GetFilters(context.Background(), &products.FiltersRequest{
+		Params: &products.FiltersParams{
+			FilterFields: "price",
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if result.ProductCount != 2 {
+		t.Errorf("expected productCount=2, got %d", result.ProductCount)
 	}
 	if result.Filters == nil {
 		t.Error("expected non-nil filters")
@@ -1208,20 +1201,20 @@ func TestListBrands(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"name":"Nike","productCount":10}]`))
+		_, _ = w.Write([]byte(`{"total":1,"count":1,"offset":0,"limit":100,"items":[{"name":"Nike","productsFilteredByBrandUrl":"https://example.com/search?attribute_Brand=Nike"}]}`))
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	brands, err := svc.ListBrands(context.Background())
+	result, err := svc.ListBrands(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(brands) != 1 {
-		t.Fatalf("expected 1 brand, got %d", len(brands))
+	if result.Total != 1 {
+		t.Errorf("expected total=1, got %d", result.Total)
 	}
-	if brands[0].Name != "Nike" {
-		t.Errorf("expected Nike, got %s", brands[0].Name)
+	if result.Items[0].Name != "Nike" {
+		t.Errorf("expected Nike, got %s", result.Items[0].Name)
 	}
 }
 
@@ -1231,20 +1224,20 @@ func TestListSwatches(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"name":"Color"}]`))
+		_, _ = w.Write([]byte(`{"colors":[{"name":"Red","hexCode":"#ff0000"}]}`))
 	}))
 	defer srv.Close()
 
 	svc := newTestService(t, srv)
-	swatches, err := svc.ListSwatches(context.Background())
+	result, err := svc.ListSwatches(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(swatches) != 1 {
-		t.Fatalf("expected 1 swatch, got %d", len(swatches))
+	if len(result.Colors) != 1 {
+		t.Fatalf("expected 1 color, got %d", len(result.Colors))
 	}
-	if swatches[0].Name != "Color" {
-		t.Errorf("expected Color, got %s", swatches[0].Name)
+	if result.Colors[0].Name != "Red" {
+		t.Errorf("expected Red, got %s", result.Colors[0].Name)
 	}
 }
 
