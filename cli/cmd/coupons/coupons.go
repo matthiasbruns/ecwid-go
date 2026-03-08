@@ -35,12 +35,18 @@ var listCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		opts := &discounts.CouponSearchOptions{}
 
-		if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-			opts.Limit = v
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
 		}
-		if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-			opts.Offset = v
+		opts.Limit = limit
+
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
 		}
+		opts.Offset = offset
+
 		if v, _ := cmd.Flags().GetString("code"); v != "" {
 			opts.Code = v
 		}
@@ -112,6 +118,10 @@ var updateCmd = &cobra.Command{
 		var c discounts.Coupon
 		if err := json.Unmarshal(data, &c); err != nil {
 			return fmt.Errorf("invalid coupon JSON: %w", err)
+		}
+
+		if c.ID != 0 && c.ID != id {
+			return fmt.Errorf("coupon JSON id %d does not match argument %d", c.ID, id)
 		}
 
 		result, err := cmdutil.AppClient.Discounts.UpdateCoupon(cmd.Context(), id, &c)

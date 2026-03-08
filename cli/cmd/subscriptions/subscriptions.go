@@ -24,21 +24,33 @@ var listCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		opts := &apisubs.SearchOptions{}
 
-		if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-			opts.Limit = v
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
 		}
-		if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-			opts.Offset = v
+		opts.Limit = limit
+
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
 		}
+		opts.Offset = offset
+
 		if v, _ := cmd.Flags().GetString("status"); v != "" {
 			opts.Status = v
 		}
-		if v, _ := cmd.Flags().GetInt64("customer-id"); v > 0 {
-			opts.CustomerID = v
+
+		customerID, err := cmdutil.GetNonNegativeInt64(cmd, "customer-id")
+		if err != nil {
+			return err
 		}
-		if v, _ := cmd.Flags().GetInt64("product-id"); v > 0 {
-			opts.ProductID = v
+		opts.CustomerID = customerID
+
+		productID, err := cmdutil.GetNonNegativeInt64(cmd, "product-id")
+		if err != nil {
+			return err
 		}
+		opts.ProductID = productID
 
 		result, err := cmdutil.AppClient.Subscriptions.Search(cmd.Context(), opts)
 		if err != nil {

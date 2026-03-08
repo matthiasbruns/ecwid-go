@@ -119,6 +119,10 @@ var updateCmd = &cobra.Command{
 			return fmt.Errorf("parse customer JSON: %w", err)
 		}
 
+		if cust.ID != 0 && cust.ID != id {
+			return fmt.Errorf("customer JSON id %d does not match argument %d", cust.ID, id)
+		}
+
 		result, err := cmdutil.AppClient.Customers.Update(cmd.Context(), id, &cust)
 		if err != nil {
 			return err

@@ -34,12 +34,17 @@ var listCmd = &cobra.Command{
 		if v, _ := cmd.Flags().GetString("keyword"); v != "" {
 			opts.Keywords = v
 		}
-		if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-			opts.Limit = v
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
 		}
-		if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-			opts.Offset = v
+		opts.Limit = limit
+
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
 		}
+		opts.Offset = offset
 
 		result, err := cmdutil.AppClient.Orders.Search(cmd.Context(), opts)
 		if err != nil {

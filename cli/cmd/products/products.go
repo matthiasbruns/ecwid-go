@@ -31,12 +31,18 @@ var listCmd = &cobra.Command{
 		if v, _ := cmd.Flags().GetInt64("category"); v > 0 {
 			opts.Category = v
 		}
-		if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-			opts.Limit = v
+
+		limit, err := cmdutil.GetNonNegativeInt(cmd, "limit")
+		if err != nil {
+			return err
 		}
-		if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-			opts.Offset = v
+		opts.Limit = limit
+
+		offset, err := cmdutil.GetNonNegativeInt(cmd, "offset")
+		if err != nil {
+			return err
 		}
+		opts.Offset = offset
 		if cmd.Flags().Changed("enabled") {
 			v, _ := cmd.Flags().GetBool("enabled")
 			opts.Enabled = &v
@@ -125,6 +131,10 @@ var updateCmd = &cobra.Command{
 		var p apiproducts.Product
 		if err := json.Unmarshal(data, &p); err != nil {
 			return fmt.Errorf("invalid product JSON: %w", err)
+		}
+
+		if p.ID != 0 && p.ID != id {
+			return fmt.Errorf("product JSON id %d does not match argument %d", p.ID, id)
 		}
 
 		resp, err := cmdutil.AppClient.Products.Update(cmd.Context(), id, &p)
