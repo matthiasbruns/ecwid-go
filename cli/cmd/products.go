@@ -21,6 +21,7 @@ var productsCmd = &cobra.Command{
 var productsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Search products",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		opts := &products.SearchOptions{}
 
@@ -68,6 +69,9 @@ var productsGetCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid product ID: %w", err)
 		}
+		if id <= 0 {
+			return fmt.Errorf("invalid product ID: must be a positive integer")
+		}
 
 		resp, err := AppClient.Products.Get(cmd.Context(), id)
 		if err != nil {
@@ -80,6 +84,7 @@ var productsGetCmd = &cobra.Command{
 var productsCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a product (reads JSON from stdin or --file)",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		data, err := readInput(cmd)
 		if err != nil {
@@ -107,6 +112,9 @@ var productsUpdateCmd = &cobra.Command{
 		id, err := strconv.ParseInt(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid product ID: %w", err)
+		}
+		if id <= 0 {
+			return fmt.Errorf("invalid product ID: must be a positive integer")
 		}
 
 		data, err := readInput(cmd)
@@ -136,6 +144,9 @@ var productsDeleteCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid product ID: %w", err)
 		}
+		if id <= 0 {
+			return fmt.Errorf("invalid product ID: must be a positive integer")
+		}
 
 		resp, err := AppClient.Products.Delete(cmd.Context(), id)
 		if err != nil {
@@ -149,9 +160,20 @@ var productsDeleteCmd = &cobra.Command{
 func readInput(cmd *cobra.Command) ([]byte, error) {
 	file, _ := cmd.Flags().GetString("file")
 	if file != "" {
-		return os.ReadFile(file)
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("read file %q: %w", file, err)
+		}
+		return data, nil
 	}
-	return io.ReadAll(cmd.InOrStdin())
+	data, err := io.ReadAll(cmd.InOrStdin())
+	if err != nil {
+		return nil, fmt.Errorf("read stdin: %w", err)
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no input provided: specify --file or provide JSON on stdin")
+	}
+	return data, nil
 }
 
 func init() {

@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/spf13/cobra"
 )
 
 func TestProductsCmd_HasSubcommands(t *testing.T) {
@@ -39,30 +36,21 @@ func TestProductsListCmd_Flags(t *testing.T) {
 }
 
 func TestProductsGetCmd_RequiresArg(t *testing.T) {
-	cmd := &cobra.Command{Use: "test"}
-	cmd.AddCommand(productsGetCmd)
-
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"get"})
-
-	err := cmd.Execute()
+	err := productsGetCmd.Args(productsGetCmd, []string{})
 	if err == nil {
 		t.Fatal("expected error when no ID provided")
 	}
 }
 
 func TestProductsDeleteCmd_RequiresArg(t *testing.T) {
-	cmd := &cobra.Command{Use: "test"}
-	cmd.AddCommand(productsDeleteCmd)
+	err := productsDeleteCmd.Args(productsDeleteCmd, []string{})
+	if err == nil {
+		t.Fatal("expected error when no ID provided")
+	}
+}
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"delete"})
-
-	err := cmd.Execute()
+func TestProductsUpdateCmd_RequiresArg(t *testing.T) {
+	err := productsUpdateCmd.Args(productsUpdateCmd, []string{})
 	if err == nil {
 		t.Fatal("expected error when no ID provided")
 	}
@@ -80,21 +68,6 @@ func TestProductsUpdateCmd_HasFileFlag(t *testing.T) {
 	}
 }
 
-func TestProductsUpdateCmd_RequiresArg(t *testing.T) {
-	cmd := &cobra.Command{Use: "test"}
-	cmd.AddCommand(productsUpdateCmd)
-
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"update"})
-
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error when no ID provided")
-	}
-}
-
 func TestProductsCmd_RegisteredOnRoot(t *testing.T) {
 	found := false
 	for _, c := range rootCmd.Commands() {
@@ -109,24 +82,45 @@ func TestProductsCmd_RegisteredOnRoot(t *testing.T) {
 }
 
 func TestProductsGetCmd_InvalidID(t *testing.T) {
-	cmd := &cobra.Command{Use: "test"}
-	getCmd := &cobra.Command{
-		Use:  "get <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: productsGetCmd.RunE,
-	}
-	cmd.AddCommand(getCmd)
-
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"get", "not-a-number"})
-
-	err := cmd.Execute()
+	err := productsGetCmd.RunE(productsGetCmd, []string{"not-a-number"})
 	if err == nil {
 		t.Fatal("expected error for invalid ID")
 	}
 	if !strings.Contains(err.Error(), "invalid product ID") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestProductsGetCmd_NegativeID(t *testing.T) {
+	err := productsGetCmd.RunE(productsGetCmd, []string{"-1"})
+	if err == nil {
+		t.Fatal("expected error for negative ID")
+	}
+	if !strings.Contains(err.Error(), "must be a positive integer") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestProductsGetCmd_ZeroID(t *testing.T) {
+	err := productsGetCmd.RunE(productsGetCmd, []string{"0"})
+	if err == nil {
+		t.Fatal("expected error for zero ID")
+	}
+	if !strings.Contains(err.Error(), "must be a positive integer") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestProductsListCmd_RejectsArgs(t *testing.T) {
+	err := productsListCmd.Args(productsListCmd, []string{"extra"})
+	if err == nil {
+		t.Fatal("expected error for extra args")
+	}
+}
+
+func TestProductsCreateCmd_RejectsArgs(t *testing.T) {
+	err := productsCreateCmd.Args(productsCreateCmd, []string{"extra"})
+	if err == nil {
+		t.Fatal("expected error for extra args")
 	}
 }
