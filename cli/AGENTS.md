@@ -25,7 +25,7 @@ Currently only `version` is implemented. When adding domain commands:
 1. Create `cmd/<domain>.go`.
 2. Define the parent command and subcommands.
 3. Use `AppClient.<Service>.<Method>()` for API calls (client is initialized in `PersistentPreRunE`).
-4. Add an output helper (respects `--output` flag) — not yet implemented.
+4. Use `outputResult(cmd, resp)` to render output (respects `--output` flag: json|table).
 
 ```go
 // Example pattern (planned, not yet in codebase):
@@ -42,7 +42,7 @@ var productsListCmd = &cobra.Command{
         if err != nil {
             return err
         }
-        return outputResult(cmd, resp) // outputResult TBD
+        return outputResult(cmd, resp)
     },
 }
 
