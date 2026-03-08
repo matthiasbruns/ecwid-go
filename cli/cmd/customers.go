@@ -21,6 +21,7 @@ var customersCmd = &cobra.Command{
 var customersListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Search / list customers",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		keyword, _ := cmd.Flags().GetString("keyword")
 		email, _ := cmd.Flags().GetString("email")
@@ -39,7 +40,7 @@ var customersListCmd = &cobra.Command{
 			return err
 		}
 
-		return outputResult(cmd, result)
+		return outputResult(cmd, result.Items)
 	},
 }
 
@@ -53,6 +54,9 @@ var customersGetCmd = &cobra.Command{
 		id, err := strconv.ParseInt(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid customer ID %q: %w", args[0], err)
+		}
+		if id <= 0 {
+			return fmt.Errorf("invalid customer ID %q: must be a positive integer", args[0])
 		}
 
 		result, err := AppClient.Customers.Get(cmd.Context(), id)
@@ -69,10 +73,14 @@ var customersGetCmd = &cobra.Command{
 var customersCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new customer (reads JSON from stdin)",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		data, err := io.ReadAll(cmd.InOrStdin())
 		if err != nil {
 			return fmt.Errorf("read stdin: %w", err)
+		}
+		if len(data) == 0 {
+			return fmt.Errorf("no input provided: pipe JSON to stdin")
 		}
 
 		var cust customers.Customer
@@ -100,10 +108,16 @@ var customersUpdateCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid customer ID %q: %w", args[0], err)
 		}
+		if id <= 0 {
+			return fmt.Errorf("invalid customer ID %q: must be a positive integer", args[0])
+		}
 
 		data, err := io.ReadAll(cmd.InOrStdin())
 		if err != nil {
 			return fmt.Errorf("read stdin: %w", err)
+		}
+		if len(data) == 0 {
+			return fmt.Errorf("no input provided: pipe JSON to stdin")
 		}
 
 		var cust customers.Customer
@@ -130,6 +144,9 @@ var customersDeleteCmd = &cobra.Command{
 		id, err := strconv.ParseInt(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid customer ID %q: %w", args[0], err)
+		}
+		if id <= 0 {
+			return fmt.Errorf("invalid customer ID %q: must be a positive integer", args[0])
 		}
 
 		result, err := AppClient.Customers.Delete(cmd.Context(), id)
