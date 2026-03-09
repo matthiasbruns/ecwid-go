@@ -1,6 +1,8 @@
 // Package dictionaries provides access to the Ecwid dictionaries API (read-only reference data).
 package dictionaries
 
+import "encoding/json"
+
 // Country represents a country returned by the Ecwid dictionaries API.
 type Country struct {
 	Code   string  `json:"code"`
@@ -32,10 +34,10 @@ type CountryCurrency struct {
 
 // TaxClass represents a tax class returned by the Ecwid dictionaries API.
 type TaxClass struct {
-	StateCode    string            `json:"stateCode"`
-	TaxClassCode string            `json:"taxClassCode"`
-	TaxClassRate string            `json:"taxClassRate"`
-	Localization map[string]string `json:"localization,omitempty"`
+	StateCode    string          `json:"stateCode"`
+	TaxClassCode string          `json:"taxClassCode"`
+	TaxClassRate string          `json:"taxClassRate"`
+	Localization json.RawMessage `json:"localization,omitempty"`
 }
 
 // CountriesOptions holds optional parameters for the Countries request.

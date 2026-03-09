@@ -13,6 +13,7 @@ func TestReports_GetReport(t *testing.T) {
 		TimeScaleValue: "month",
 	})
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("GetReport(allOrders): %v", err)
 	}
 	if report.ReportType != "allOrders" {
@@ -28,6 +29,7 @@ func TestReports_LatestStats(t *testing.T) {
 		CategoryCountRequired: true,
 	})
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("LatestStats: %v", err)
 	}
 	_ = stats

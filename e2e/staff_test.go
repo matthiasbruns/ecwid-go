@@ -9,6 +9,7 @@ func TestStaff_List(t *testing.T) {
 
 	result, err := testClient.Staff.List(ctx)
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Staff.List: %v", err)
 	}
 	if len(result.StaffList) == 0 {

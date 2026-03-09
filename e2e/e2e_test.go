@@ -9,6 +9,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -32,8 +33,19 @@ func testContext(t *testing.T) context.Context {
 	return ctx
 }
 
+// skipIfForbidden skips the test if the error is a 403 Forbidden API error.
+// This allows tests to pass when the API token lacks required scopes.
+func skipIfForbidden(t *testing.T, err error) {
+	t.Helper()
+	var apiErr *ecwid.APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
+		t.Skipf("skipping: token lacks required scope (403 Forbidden)")
+	}
+}
+
 func TestMain(m *testing.M) {
 	if os.Getenv("ECWID_E2E") != "1" {
+		_, _ = fmt.Fprintln(os.Stderr, "ECWID_E2E environment variable not set to 1, skipping E2E tests")
 		os.Exit(0)
 	}
 

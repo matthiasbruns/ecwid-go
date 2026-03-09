@@ -9,6 +9,7 @@ func TestDomains_Get(t *testing.T) {
 
 	result, err := testClient.Domains.Get(ctx)
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Domains.Get: %v", err)
 	}
 	if result.InstantSiteDomain == nil {
