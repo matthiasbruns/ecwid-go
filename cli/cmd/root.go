@@ -66,6 +66,8 @@ func init() {
 	rootCmd.PersistentFlags().String("token", "", "API access token (env: ECWID_TOKEN)")
 	rootCmd.PersistentFlags().String("output", "", "output format: json|table (default: json)")
 	rootCmd.PersistentFlags().String("log-level", "", "log level: debug|info|warn|error (default: info)")
+	rootCmd.PersistentFlags().String("base-url", "", "API base URL (env: ECWID_BASE_URL)")
+	rootCmd.PersistentFlags().Int("max-retries", 0, "max retries on rate limit (env: ECWID_MAX_RETRIES)")
 
 	// Register domain commands.
 	rootCmd.AddCommand(
