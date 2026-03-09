@@ -11,6 +11,7 @@ func TestCustomers_Search(t *testing.T) {
 
 	result, err := testClient.Customers.Search(ctx, &customers.SearchOptions{Limit: 5})
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Customers.Search: %v", err)
 	}
 	if result.Items == nil {
@@ -23,11 +24,11 @@ func TestCustomers_CRUD(t *testing.T) {
 
 	// Create
 	created, err := testClient.Customers.Create(ctx, &customers.Customer{
-		Email:     "ecwid-go-test@example.com",
-		FirstName: "Test",
-		LastName:  "User",
+		Email: "ecwid-go-test@example.com",
+		Name:  "Test User",
 	})
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Customers.Create: %v", err)
 	}
 	if created.ID == 0 {
@@ -51,7 +52,7 @@ func TestCustomers_CRUD(t *testing.T) {
 
 	// Update
 	updated, err := testClient.Customers.Update(ctx, custID, &customers.Customer{
-		FirstName: "Updated",
+		Name: "Updated User",
 	})
 	if err != nil {
 		t.Fatalf("Customers.Update: %v", err)

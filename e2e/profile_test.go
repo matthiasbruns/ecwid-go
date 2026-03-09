@@ -9,6 +9,7 @@ func TestProfile_Get(t *testing.T) {
 
 	p, err := testClient.Profile.Get(ctx)
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Profile.Get: %v", err)
 	}
 	if p.GeneralInfo == nil {

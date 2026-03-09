@@ -11,6 +11,7 @@ func TestCategories_Search(t *testing.T) {
 
 	result, err := testClient.Categories.Search(ctx, &categories.SearchOptions{Limit: 5})
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Categories.Search: %v", err)
 	}
 	if result.Items == nil {
@@ -26,6 +27,7 @@ func TestCategories_CRUD(t *testing.T) {
 		Name: "ecwid-go-test-category",
 	})
 	if err != nil {
+		skipIfForbidden(t, err)
 		t.Fatalf("Categories.Create: %v", err)
 	}
 	if created.ID == 0 {
