@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ import (
 const testStoreID = "12345"
 
 // newMockServer creates a test HTTP server that routes requests matching the Ecwid API.
-// The storeID prefix (e.g. "/12345") is stripped before matching routes.
+// Routes are registered with the storeID prefix (e.g. "/12345") included in the pattern.
 func newMockServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
@@ -22,6 +23,14 @@ func newMockServer(t *testing.T) *httptest.Server {
 	// Helper to register routes with the store ID prefix.
 	handle := func(pattern string, h http.HandlerFunc) {
 		mux.HandleFunc(prefix+pattern, h)
+	}
+
+	// methodNotAllowed returns a 405 for unhandled methods.
+	methodNotAllowed := func(w http.ResponseWriter, r *http.Request) {
+		writeJSONStatus(w, http.StatusMethodNotAllowed, map[string]any{
+			"errorCode":    "METHOD_NOT_ALLOWED",
+			"errorMessage": r.Method + " not allowed",
+		})
 	}
 
 	// ── Profile ──────────────────────────────────────────────────────────
@@ -34,6 +43,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPut:
 			writeJSON(w, map[string]any{"updateCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -63,6 +74,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"id": 1001})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/categories/", func(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +86,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -88,6 +103,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"id": 2001})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/products/", func(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +115,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -113,6 +132,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"id": 3001, "orderid": "ORD-001"})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/orders/", func(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +144,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -138,6 +161,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"id": 4001})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/customers/", func(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +173,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -163,6 +190,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"id": 5001})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/promotions/", func(w http.ResponseWriter, r *http.Request) {
@@ -171,6 +200,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -186,6 +217,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"id": 6001})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/discount_coupons/", func(w http.ResponseWriter, r *http.Request) {
@@ -196,6 +229,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -217,6 +252,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -231,6 +268,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			})
 		case http.MethodPost:
 			writeJSON(w, map[string]any{"success": true})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 	handle("/staff/", func(w http.ResponseWriter, r *http.Request) {
@@ -241,6 +280,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"updateCount": 1})
 		case http.MethodDelete:
 			writeJSON(w, map[string]any{"deleteCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -291,6 +332,8 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"cartId": "cart-001", "hidden": false})
 		case http.MethodPut:
 			writeJSON(w, map[string]any{"updateCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
 	})
 
@@ -309,7 +352,34 @@ func newMockServer(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"subscriptionId": 8001, "customerId": 100, "status": "ACTIVE"})
 		case http.MethodPut:
 			writeJSON(w, map[string]any{"updateCount": 1})
+		default:
+			methodNotAllowed(w, r)
 		}
+	})
+
+	// ── Retry endpoint (429 then 200) ───────────────────────────────────
+	// Returns 429 on the first request, then 200 with profile data on retry.
+	var retryCount atomic.Int32
+	mux.HandleFunc("/retry/"+testStoreID+"/profile", func(w http.ResponseWriter, _ *http.Request) {
+		n := retryCount.Add(1)
+		if n == 1 {
+			w.Header().Set("Retry-After", "0")
+			writeJSONStatus(w, http.StatusTooManyRequests, map[string]any{
+				"errorCode":    "RATE_LIMIT",
+				"errorMessage": "Rate limit exceeded",
+			})
+			return
+		}
+		writeJSON(w, map[string]any{
+			"generalInfo": map[string]any{"storeId": 12345},
+			"settings":    map[string]any{"storeName": "Retry Store"},
+		})
+	})
+
+	// ── Malformed JSON endpoint ──────────────────────────────────────────
+	mux.HandleFunc("/malformed/"+testStoreID+"/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{invalid json`))
 	})
 
 	// ── Error simulation endpoints ───────────────────────────────────────
@@ -329,15 +399,13 @@ func newMockServer(t *testing.T) *httptest.Server {
 			if errCase.code == 429 {
 				w.Header().Set("Retry-After", "5")
 			}
-			w.WriteHeader(errCase.code)
-			writeJSON(w, errCase.body)
+			writeJSONStatus(w, errCase.code, errCase.body)
 		})
 	}
 
 	// Catch-all for debugging.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		writeJSON(w, map[string]any{
+		writeJSONStatus(w, http.StatusNotFound, map[string]any{
 			"errorCode":    "ROUTE_NOT_FOUND",
 			"errorMessage": "mock server: no handler for " + r.Method + " " + r.URL.Path,
 		})
@@ -350,5 +418,11 @@ func newMockServer(t *testing.T) *httptest.Server {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeJSONStatus(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
 }

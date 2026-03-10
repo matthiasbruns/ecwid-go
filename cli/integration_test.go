@@ -54,9 +54,8 @@ func runCLIWithStdin(t *testing.T, baseURL, stdin string, args ...string) cliRes
 		"ECWID_BASE_URL="+baseURL,
 		"HOME="+t.TempDir(), // Prevent loading user's ~/.ecwid.yaml
 	)
-	if stdin != "" {
-		cmd.Stdin = strings.NewReader(stdin)
-	}
+	// Always set stdin to prevent hanging if a command unexpectedly reads.
+	cmd.Stdin = strings.NewReader(stdin)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -104,12 +103,14 @@ func TestCLI_Help(t *testing.T) {
 }
 
 func TestCLI_SubcommandHelp(t *testing.T) {
+	t.Parallel()
 	for _, sub := range []string{
 		"products", "orders", "categories", "customers",
 		"dictionaries", "profile", "carts", "subscriptions",
 		"promotions", "coupons", "reviews", "staff", "domains", "reports",
 	} {
 		t.Run(sub, func(t *testing.T) {
+			t.Parallel()
 			cmd := exec.Command(binaryPath, sub, "--help")
 			cmd.Env = append(os.Environ(), "HOME="+t.TempDir())
 			if err := cmd.Run(); err != nil {
@@ -176,6 +177,38 @@ func TestCLI_FlagPrecedence(t *testing.T) {
 	if !strings.Contains(string(out), "storeId") {
 		t.Errorf("expected storeId in output, got %q", string(out))
 	}
+}
+
+func TestCLI_BaseURLFlag(t *testing.T) {
+	srv := newMockServer(t)
+	// Use --base-url flag instead of env var.
+	cmd := exec.Command(binaryPath, "--base-url", srv.URL, "profile", "get")
+	cmd.Env = append(os.Environ(),
+		"ECWID_STORE_ID="+testStoreID,
+		"ECWID_TOKEN=test-token",
+		"HOME="+t.TempDir(),
+	)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("--base-url flag test failed: %v", err)
+	}
+	assertContains(t, string(out), "storeId")
+}
+
+func TestCLI_MaxRetriesFlag(t *testing.T) {
+	srv := newMockServer(t)
+	// Use --max-retries flag; the /retry endpoint returns 429 first, then 200.
+	cmd := exec.Command(binaryPath, "--base-url", srv.URL+"/retry", "--max-retries", "2", "profile", "get")
+	cmd.Env = append(os.Environ(),
+		"ECWID_STORE_ID="+testStoreID,
+		"ECWID_TOKEN=test-token",
+		"HOME="+t.TempDir(),
+	)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("--max-retries flag test failed: %v", err)
+	}
+	assertContains(t, string(out), "Retry Store")
 }
 
 // ── Dictionaries ────────────────────────────────────────────────────────
@@ -657,6 +690,7 @@ func TestCLI_Error_401(t *testing.T) {
 	if r.exitCode == 0 {
 		t.Fatal("expected non-zero exit code for 401")
 	}
+	assertContains(t, r.stderr, "401")
 }
 
 func TestCLI_Error_404(t *testing.T) {
@@ -665,6 +699,7 @@ func TestCLI_Error_404(t *testing.T) {
 	if r.exitCode == 0 {
 		t.Fatal("expected non-zero exit code for 404")
 	}
+	assertContains(t, r.stderr, "404")
 }
 
 func TestCLI_Error_429(t *testing.T) {
@@ -672,6 +707,15 @@ func TestCLI_Error_429(t *testing.T) {
 	r := runCLI(t, srv.URL+"/error-429", "profile", "get")
 	if r.exitCode == 0 {
 		t.Fatal("expected non-zero exit code for 429")
+	}
+	assertContains(t, r.stderr, "429")
+}
+
+func TestCLI_Error_MalformedJSON(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL+"/malformed", "profile", "get")
+	if r.exitCode == 0 {
+		t.Fatal("expected non-zero exit code for malformed JSON")
 	}
 }
 
