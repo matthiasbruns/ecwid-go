@@ -12,20 +12,32 @@ jobs:
   e2e:
     name: E2E
     runs-on: ubuntu-latest
-    if: ${{ secrets.ECWID_STORE_ID != '' && secrets.ECWID_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v6
 
+      - name: Check secrets
+        id: secrets-check
+        run: |
+          if [ -z "${{ secrets.ECWID_STORE_ID }}" ] || [ -z "${{ secrets.ECWID_TOKEN }}" ]; then
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping E2E tests — ECWID_STORE_ID and/or ECWID_TOKEN secrets not configured"
+          else
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-go@v6
+        if: steps.secrets-check.outputs.has_secrets == 'true'
         with:
           go-version: '1.26'
 
       - name: Install Task
+        if: steps.secrets-check.outputs.has_secrets == 'true'
         uses: arduino/setup-task@v2
         with:
           version: 3.x
 
       - name: Run E2E tests
+        if: steps.secrets-check.outputs.has_secrets == 'true'
         env:
           ECWID_E2E: '1'
           ECWID_STORE_ID: ${{ secrets.ECWID_STORE_ID }}
