@@ -7,6 +7,7 @@ import (
 )
 
 func TestCategories_Search(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Categories.Search(ctx, &categories.SearchOptions{Limit: 5})
@@ -20,6 +21,7 @@ func TestCategories_Search(t *testing.T) {
 }
 
 func TestCategories_CRUD(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	// Create

@@ -7,6 +7,7 @@ import (
 )
 
 func TestProducts_Search(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Products.Search(ctx, &products.SearchOptions{Limit: 5})
@@ -20,6 +21,7 @@ func TestProducts_Search(t *testing.T) {
 }
 
 func TestProducts_SearchWithFilters(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	// Create a product with a known price to search for.
@@ -78,6 +80,7 @@ func TestProducts_SearchWithFilters(t *testing.T) {
 }
 
 func TestProducts_CRUD(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	// Create

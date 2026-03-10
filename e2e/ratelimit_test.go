@@ -10,6 +10,7 @@ import (
 )
 
 func TestRateLimit_Handling(t *testing.T) {
+	requireClient(t)
 	// Fire many concurrent requests to try to trigger a 429.
 	// The client is configured with MaxRetries: 3, so rate-limited
 	// requests should be retried automatically.

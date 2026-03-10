@@ -8,10 +8,17 @@ All tests require `ECWID_E2E=1` — they are skipped entirely otherwise.
 
 ## Secrets needed
 
-| Variable         | Description                        |
-|------------------|------------------------------------|
-| `ECWID_STORE_ID` | Ecwid store ID                     |
-| `ECWID_TOKEN`    | API access token with full scopes  |
+| Variable         | Description                        | Required for         |
+|------------------|------------------------------------|----------------------|
+| `ECWID_STORE_ID` | Ecwid store ID                     | API + CLI API tests  |
+| `ECWID_TOKEN`    | API access token with full scopes  | API + CLI API tests  |
+
+CLI tests for `version`, `--help`, missing credentials, and invalid store ID run without secrets.
+
+## Test categories
+
+- **API tests** (`*_test.go` except `cli_test.go`): call `requireClient(t)` to skip when credentials are missing.
+- **CLI tests** (`cli_test.go`): invoke the compiled `ecwid` binary via `os/exec`. Tests needing real API access call `requireCredentialEnv(t)`.
 
 ## Rules
 
@@ -21,6 +28,7 @@ All tests require `ECWID_E2E=1` — they are skipped entirely otherwise.
 - **Read-only tests first**: dictionaries, reports don't mutate state.
 - **CRUD tests**: create test data with unique names, clean up in `t.Cleanup`.
 - **Timeouts**: use `testContext(t)` helper (30s per request). HTTP client has 60s timeout.
+- **API tests**: always call `requireClient(t)` at the start of each test function.
 
 ## Adding tests for new domains
 

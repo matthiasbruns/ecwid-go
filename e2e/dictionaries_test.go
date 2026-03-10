@@ -7,6 +7,7 @@ import (
 )
 
 func TestDictionaries_Countries(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	countries, err := testClient.Dictionaries.Countries(ctx, nil)
@@ -33,6 +34,7 @@ func TestDictionaries_Countries(t *testing.T) {
 }
 
 func TestDictionaries_CountriesWithStates(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	countries, err := testClient.Dictionaries.Countries(ctx, &dictionaries.CountriesOptions{
@@ -55,6 +57,7 @@ func TestDictionaries_CountriesWithStates(t *testing.T) {
 }
 
 func TestDictionaries_Currencies(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	currencies, err := testClient.Dictionaries.Currencies(ctx, "en")
@@ -78,6 +81,7 @@ func TestDictionaries_Currencies(t *testing.T) {
 }
 
 func TestDictionaries_CurrencyByCountry(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	currencies, err := testClient.Dictionaries.CurrencyByCountry(ctx, "DE", "en")
@@ -101,6 +105,7 @@ func TestDictionaries_CurrencyByCountry(t *testing.T) {
 }
 
 func TestDictionaries_States(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	states, err := testClient.Dictionaries.States(ctx, "US", "en")
@@ -124,6 +129,7 @@ func TestDictionaries_States(t *testing.T) {
 }
 
 func TestDictionaries_TaxClasses(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	taxClasses, err := testClient.Dictionaries.TaxClasses(ctx, "US", "en")
