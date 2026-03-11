@@ -7,6 +7,7 @@ import (
 )
 
 func TestCategories_Search(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Categories.Search(ctx, &categories.SearchOptions{Limit: 5})
@@ -20,6 +21,7 @@ func TestCategories_Search(t *testing.T) {
 }
 
 func TestCategories_CRUD(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	// Create
@@ -35,10 +37,10 @@ func TestCategories_CRUD(t *testing.T) {
 	}
 	catID := created.ID
 
-	// Clean up at the end
-	defer func() {
+	// Clean up at the end.
+	t.Cleanup(func() {
 		_, _ = testClient.Categories.Delete(testContext(t), catID)
-	}()
+	})
 
 	// Get
 	cat, err := testClient.Categories.Get(ctx, catID)

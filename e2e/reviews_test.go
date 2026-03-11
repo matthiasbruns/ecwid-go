@@ -5,6 +5,7 @@ import (
 )
 
 func TestReviews_Search(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Reviews.Search(ctx, nil)

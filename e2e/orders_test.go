@@ -9,6 +9,7 @@ import (
 )
 
 func TestOrders_Search(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Orders.Search(ctx, &orders.SearchOptions{Limit: 5})
@@ -22,6 +23,7 @@ func TestOrders_Search(t *testing.T) {
 }
 
 func TestOrders_CRUD(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	items, _ := json.Marshal([]map[string]any{
