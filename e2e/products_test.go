@@ -100,9 +100,9 @@ func TestProducts_CRUD(t *testing.T) {
 	prodID := created.ID
 
 	// Clean up at the end.
-	defer func() {
+	t.Cleanup(func() {
 		_, _ = testClient.Products.Delete(testContext(t), prodID)
-	}()
+	})
 
 	// Get
 	prod, err := testClient.Products.Get(ctx, prodID)

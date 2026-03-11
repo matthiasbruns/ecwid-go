@@ -17,16 +17,26 @@ type cliResult struct {
 }
 
 // runBinary executes the compiled CLI binary with the given args and environment.
-// baseEnv is merged on top of a minimal environment (PATH only).
+// env is merged on top of a minimal environment (PATH and a temporary HOME).
 func runBinary(t *testing.T, env []string, args ...string) cliResult {
 	t.Helper()
 
 	cmd := exec.Command(binaryPath, args...)
-	// Start with a clean environment to avoid inheriting user config.
-	cmd.Env = append([]string{
-		"PATH=" + os.Getenv("PATH"),
-		"HOME=" + t.TempDir(),
-	}, env...)
+
+	// Use a map so caller-provided variables override defaults.
+	envMap := map[string]string{
+		"PATH": os.Getenv("PATH"),
+		"HOME": t.TempDir(),
+	}
+	for _, e := range env {
+		if key, value, ok := strings.Cut(e, "="); ok {
+			envMap[key] = value
+		}
+	}
+	cmd.Env = make([]string, 0, len(envMap))
+	for key, value := range envMap {
+		cmd.Env = append(cmd.Env, key+"="+value)
+	}
 	cmd.Stdin = strings.NewReader("") // prevent hanging
 
 	var stdout, stderr bytes.Buffer
@@ -113,7 +123,7 @@ func TestCLI_MissingCredentials(t *testing.T) {
 // ── Config file loading ─────────────────────────────────────────────────
 
 func TestCLI_ConfigFile(t *testing.T) {
-	env := requireCredentialEnv(t)
+	requireCredentialEnv(t) // gate: skip if credentials unavailable
 
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "config.yaml")
@@ -130,7 +140,6 @@ func TestCLI_ConfigFile(t *testing.T) {
 	if !strings.Contains(r.stdout, "US") {
 		t.Errorf("expected US in output, got %q", r.stdout)
 	}
-	_ = env // credentials validated above
 }
 
 // ── Env var loading ─────────────────────────────────────────────────────
@@ -150,7 +159,7 @@ func TestCLI_EnvVarLoading(t *testing.T) {
 // ── Flag precedence over env ────────────────────────────────────────────
 
 func TestCLI_FlagPrecedence(t *testing.T) {
-	env := requireCredentialEnv(t)
+	requireCredentialEnv(t) // gate: skip if credentials unavailable
 
 	// Pass correct store-id via flag, wrong one via env.
 	storeID := os.Getenv("ECWID_STORE_ID")
@@ -166,7 +175,6 @@ func TestCLI_FlagPrecedence(t *testing.T) {
 	if !strings.Contains(r.stdout, "US") {
 		t.Errorf("expected US in output, got %q", r.stdout)
 	}
-	_ = env
 }
 
 // ── JSON output ─────────────────────────────────────────────────────────

@@ -73,6 +73,7 @@ func TestMain(m *testing.M) {
 	buildCmd.Stderr = os.Stderr
 	if err := buildCmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to build CLI binary: %v\n", err)
+		_ = os.RemoveAll(tmpDir)
 		os.Exit(1)
 	}
 
