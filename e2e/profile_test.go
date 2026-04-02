@@ -5,6 +5,7 @@ import (
 )
 
 func TestProfile_Get(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	p, err := testClient.Profile.Get(ctx)

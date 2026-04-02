@@ -7,6 +7,7 @@ import (
 )
 
 func TestCustomers_Search(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Customers.Search(ctx, &customers.SearchOptions{Limit: 5})
@@ -20,6 +21,7 @@ func TestCustomers_Search(t *testing.T) {
 }
 
 func TestCustomers_CRUD(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	// Create

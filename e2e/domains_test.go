@@ -5,6 +5,7 @@ import (
 )
 
 func TestDomains_Get(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Domains.Get(ctx)

@@ -7,6 +7,7 @@ import (
 )
 
 func TestReports_GetReport(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	report, err := testClient.Reports.GetReport(ctx, "allOrders", &reports.ReportOptions{
@@ -22,6 +23,7 @@ func TestReports_GetReport(t *testing.T) {
 }
 
 func TestReports_LatestStats(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	stats, err := testClient.Reports.LatestStats(ctx, &reports.LatestStatsOptions{

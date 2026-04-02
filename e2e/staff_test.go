@@ -5,6 +5,7 @@ import (
 )
 
 func TestStaff_List(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Staff.List(ctx)

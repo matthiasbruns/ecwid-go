@@ -5,6 +5,7 @@ import (
 )
 
 func TestDiscounts_SearchPromotions(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Discounts.SearchPromotions(ctx)
@@ -16,6 +17,7 @@ func TestDiscounts_SearchPromotions(t *testing.T) {
 }
 
 func TestDiscounts_SearchCoupons(t *testing.T) {
+	requireClient(t)
 	ctx := testContext(t)
 
 	result, err := testClient.Discounts.SearchCoupons(ctx, nil)
