@@ -13,6 +13,7 @@ import (
 	"github.com/matthiasbruns/ecwid-go/cli/cmd/customers"
 	"github.com/matthiasbruns/ecwid-go/cli/cmd/dictionaries"
 	"github.com/matthiasbruns/ecwid-go/cli/cmd/domains"
+	"github.com/matthiasbruns/ecwid-go/cli/cmd/instantsite"
 	"github.com/matthiasbruns/ecwid-go/cli/cmd/orders"
 	"github.com/matthiasbruns/ecwid-go/cli/cmd/products"
 	"github.com/matthiasbruns/ecwid-go/cli/cmd/profile"
@@ -68,6 +69,9 @@ func init() {
 	rootCmd.PersistentFlags().String("log-level", "", "log level: debug|info|warn|error (default: info)")
 	rootCmd.PersistentFlags().String("base-url", "", "API base URL (env: ECWID_BASE_URL)")
 	rootCmd.PersistentFlags().Int("max-retries", 0, "max retries on rate limit (env: ECWID_MAX_RETRIES)")
+	rootCmd.PersistentFlags().String("instant-site-base-url", "", "Instant Site v1 API base URL (env: ECWID_INSTANT_SITE_BASE_URL)")
+	rootCmd.PersistentFlags().String("instant-site-auth-url", "", "Instant Site token-exchange base URL (env: ECWID_INSTANT_SITE_AUTH_URL)")
+	rootCmd.PersistentFlags().String("instant-site-token", "", "Instant Site v1 API access token (env: ECWID_INSTANT_SITE_TOKEN)")
 
 	// Register domain commands.
 	rootCmd.AddCommand(
@@ -77,6 +81,7 @@ func init() {
 		customers.Cmd,
 		dictionaries.Cmd,
 		domains.Cmd,
+		instantsite.Cmd,
 		orders.Cmd,
 		products.Cmd,
 		profile.Cmd,

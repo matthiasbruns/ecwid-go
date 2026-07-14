@@ -79,9 +79,12 @@ func TestMain(m *testing.M) {
 
 	// Set up API client if credentials are available.
 	cfg := config.Config{
-		StoreID:    os.Getenv("ECWID_STORE_ID"),
-		Token:      os.Getenv("ECWID_TOKEN"),
-		MaxRetries: 3,
+		StoreID:            os.Getenv("ECWID_STORE_ID"),
+		Token:              os.Getenv("ECWID_TOKEN"),
+		MaxRetries:         3,
+		InstantSiteBaseURL: os.Getenv("ECWID_INSTANT_SITE_BASE_URL"),
+		InstantSiteAuthURL: os.Getenv("ECWID_INSTANT_SITE_AUTH_URL"),
+		InstantSiteToken:   os.Getenv("ECWID_INSTANT_SITE_TOKEN"),
 	}
 	cfg = cfg.WithDefaults()
 

@@ -7,7 +7,7 @@ Go client library and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-re
 
 ## Features
 
-- **Full Ecwid API coverage** — Products, Orders, Customers, Categories, Carts, Subscriptions, Promotions, Coupons, Reviews, Store Profile, Staff, Domains, Dictionaries, Reports
+- **Full Ecwid API coverage** — Products, Orders, Customers, Categories, Carts, Subscriptions, Promotions, Coupons, Reviews, Store Profile, Staff, Domains, Instant Site, Dictionaries, Reports
 - **Stdlib only** — Zero external dependencies in config and client modules
 - **Stateless** — No internal state; credentials passed explicitly per client
 - **Multi-module** — Clean separation: `config/`, `ecwid/`, `cli/` with independent `go.mod`s
@@ -171,6 +171,7 @@ Ecwid allows **600 requests/minute per token**.
 | Promotions | `PromotionService` | 🔲 |
 | Discount Coupons | `CouponService` | 🔲 |
 | Domains | `DomainService` | 🔲 |
+| Instant Site | `InstantSiteService` | ✅ |
 | Dictionaries | `DictionaryService` | 🔲 |
 | Staff | `StaffService` | 🔲 |
 | Reports | `ReportService` | 🔲 |

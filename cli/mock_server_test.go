@@ -357,6 +357,165 @@ func newMockServer(t *testing.T) *httptest.Server {
 		}
 	})
 
+	// ── Instant Site: redirects (v3, main host) ──────────────────────────
+	handle("/instant-site/redirects", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{
+				"total": 1, "count": 1, "offset": 0, "limit": 10,
+				"items": []map[string]any{
+					{"id": "r1", "fromUrl": "/old", "toUrl": "/new"},
+				},
+			})
+		case http.MethodPost:
+			writeJSON(w, map[string]any{"id": "r2", "fromUrl": "/a", "toUrl": "/b"})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handle("/instant-site/redirects/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"id": "r1", "fromUrl": "/old", "toUrl": "/new"})
+		case http.MethodPut:
+			writeJSON(w, map[string]any{"id": "r1", "fromUrl": "/old", "toUrl": "/newer"})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+
+	// ── Instant Site: v1 host ────────────────────────────────────────────
+	// The CLI/e2e point ECWID_INSTANT_SITE_BASE_URL at srv.URL + "/is-v1" so
+	// these paths don't collide with the main store /profile handler above.
+	handleIS := func(pattern string, h http.HandlerFunc) {
+		mux.HandleFunc("/is-v1/"+testStoreID+pattern, h)
+	}
+	handleIS("/profile", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"siteId": "s1", "storeName": "Test Instant Site", "siteUrl": "https://test.company.site"})
+		case http.MethodPost, http.MethodPut:
+			writeJSON(w, map[string]any{"siteId": "s1", "storeName": "Test Instant Site"})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/publish", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, map[string]any{}) })
+	handleIS("/discard", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, map[string]any{}) })
+	handleIS("/clone", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, map[string]any{}) })
+	handleIS("/page", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"pages": []map[string]any{
+				{"pageId": "p1", "title": "Home", "tileIds": []string{"t1", "t2"}},
+			}})
+		case http.MethodPost:
+			writeJSON(w, map[string]any{"pageId": "p9"})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/page/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			writeJSON(w, map[string]any{"pageId": "p1", "title": "Renamed"})
+		case http.MethodDelete:
+			writeJSON(w, map[string]any{"pageId": "p1"})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/tile", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"tiles": []map[string]any{
+				{"id": "t1", "type": "COVER"},
+			}})
+		case http.MethodPost:
+			writeJSON(w, map[string]any{"id": "t9", "type": "COVER"})
+		case http.MethodPut:
+			writeJSON(w, map[string]any{"tiles": []map[string]any{{"id": "t1"}}})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/tile/showcase", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"categories": []map[string]any{
+			{"type": "COVER", "items": []map[string]any{{"id": "i1"}}},
+		}})
+	})
+	handleIS("/tile/config/", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"type": "COVER", "config": map[string]any{"layoutConfigList": []any{}}})
+	})
+	handleIS("/tile/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/image") && r.Method == http.MethodPost {
+			writeJSON(w, map[string]any{"url": "https://upload.example", "id": "img1"})
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"id": "t1", "type": "COVER"})
+		case http.MethodPut:
+			writeJSON(w, map[string]any{"id": "t1", "tileName": "Renamed"})
+		case http.MethodDelete:
+			writeJSON(w, map[string]any{"id": "t1"})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/image/bucket", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"urls": map[string]any{"eu-fra": "https://d2gt4h1eeousrn.cloudfront.net"}})
+	})
+	handleIS("/image/", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"bucket": "eu-fra", "set": []map[string]any{
+			{"url": "https://cdn.example/x.jpg", "width": 800, "height": 600},
+		}})
+	})
+	handleIS("/themes", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"themes": []map[string]any{
+				{"themeId": "th1", "colors": map[string]any{"colorA": "#fff"}},
+			}})
+		case http.MethodPost:
+			writeJSON(w, map[string]any{"themeId": "th2", "colors": map[string]any{"colorA": "#000"}})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/themes/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			writeJSON(w, map[string]any{"themeId": "th2", "colors": map[string]any{"colorA": "#111"}})
+		case http.MethodDelete:
+			writeJSON(w, map[string]any{"themeId": "th2", "colors": map[string]any{"colorA": "#111"}})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/current_theme", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, map[string]any{"colors": map[string]any{"colorA": "#abc"}})
+		case http.MethodPut:
+			writeJSON(w, map[string]any{"themeId": "cur", "colors": map[string]any{"colorA": "#abc"}})
+		default:
+			methodNotAllowed(w, r)
+		}
+	})
+	handleIS("/translation", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{
+			"editorTranslations":   map[string]any{"k": "v"},
+			"languageTranslations": map[string]any{"en": map[string]any{"Language.en": "English"}},
+		})
+	})
+
+	// ── Instant Site: token exchange (auth host) ─────────────────────────
+	// The CLI/e2e point ECWID_INSTANT_SITE_AUTH_URL at srv.URL + "/is-auth".
+	mux.HandleFunc("/is-auth/oauth/token", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"accessToken": "tok_abc", "tokenType": "bearer", "expiresIn": 86400})
+	})
+
 	// ── Retry endpoint (429 then 200) ───────────────────────────────────
 	// Returns 429 on the first request, then 200 with profile data on retry.
 	var retryCount atomic.Int32

@@ -19,6 +19,7 @@ import (
 	"github.com/matthiasbruns/ecwid-go/ecwid/dictionaries"
 	"github.com/matthiasbruns/ecwid-go/ecwid/discounts"
 	"github.com/matthiasbruns/ecwid-go/ecwid/domains"
+	"github.com/matthiasbruns/ecwid-go/ecwid/instantsite"
 	"github.com/matthiasbruns/ecwid-go/ecwid/internal/api"
 	"github.com/matthiasbruns/ecwid-go/ecwid/orders"
 	"github.com/matthiasbruns/ecwid-go/ecwid/products"
@@ -38,6 +39,7 @@ type Client struct {
 	Dictionaries  *dictionaries.Service
 	Discounts     *discounts.Service
 	Domains       *domains.Service
+	InstantSite   *instantsite.Service
 	Orders        *orders.Service
 	Products      *products.Service
 	Profile       *profile.Service
@@ -97,6 +99,26 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 		Logger:     o.logger,
 	})
 
+	// The Instant Site v1 endpoints live on a separate host and use a separate
+	// token; the token-exchange endpoint uses the auth host with no store-ID
+	// path segment and no bearer token.
+	instantSiteV1 := api.NewHTTPClient(api.HTTPClientConfig{
+		BaseURL:    cfg.InstantSiteBaseURL,
+		StoreID:    cfg.StoreID,
+		Token:      cfg.InstantSiteToken,
+		MaxRetries: cfg.MaxRetries,
+		HTTPClient: o.httpClient,
+		Logger:     o.logger,
+	})
+	instantSiteAuth := api.NewHTTPClient(api.HTTPClientConfig{
+		BaseURL:    cfg.InstantSiteAuthURL,
+		StoreID:    "",
+		Token:      "",
+		MaxRetries: cfg.MaxRetries,
+		HTTPClient: o.httpClient,
+		Logger:     o.logger,
+	})
+
 	return &Client{
 		Billing:       billing.NewService(requester),
 		Carts:         carts.NewService(requester),
@@ -105,6 +127,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 		Dictionaries:  dictionaries.NewService(requester),
 		Discounts:     discounts.NewService(requester),
 		Domains:       domains.NewService(requester),
+		InstantSite:   instantsite.NewService(requester, instantSiteV1, instantSiteAuth),
 		Orders:        orders.NewService(requester),
 		Products:      products.NewService(requester),
 		Profile:       profile.NewService(requester),

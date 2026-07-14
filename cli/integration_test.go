@@ -52,6 +52,11 @@ func runCLIWithStdin(t *testing.T, baseURL, stdin string, args ...string) cliRes
 		"ECWID_STORE_ID="+testStoreID,
 		"ECWID_TOKEN=test-token",
 		"ECWID_BASE_URL="+baseURL,
+		// Instant Site v1 endpoints live on a separate host/token; point them at
+		// the same mock server under distinct prefixes (see newMockServer).
+		"ECWID_INSTANT_SITE_BASE_URL="+baseURL+"/is-v1",
+		"ECWID_INSTANT_SITE_AUTH_URL="+baseURL+"/is-auth",
+		"ECWID_INSTANT_SITE_TOKEN=is-test-token",
 		"HOME="+t.TempDir(), // Prevent loading user's ~/.ecwid.yaml
 	)
 	// Always set stdin to prevent hanging if a command unexpectedly reads.
@@ -108,6 +113,7 @@ func TestCLI_SubcommandHelp(t *testing.T) {
 		"products", "orders", "categories", "customers",
 		"dictionaries", "profile", "carts", "subscriptions",
 		"promotions", "coupons", "reviews", "staff", "domains", "reports",
+		"instantsite",
 	} {
 		t.Run(sub, func(t *testing.T) {
 			t.Parallel()
@@ -680,6 +686,80 @@ func TestCLI_Subscriptions_Get(t *testing.T) {
 		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
 	}
 	assertContains(t, r.stdout, "8001")
+}
+
+// ── Instant Site ────────────────────────────────────────────────────────
+
+func TestCLI_InstantSite_RedirectsSearch(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "redirects", "search")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "/old")
+}
+
+func TestCLI_InstantSite_RedirectsCreate(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLIWithStdin(t, srv.URL, `{"fromUrl":"/a","toUrl":"/b"}`, "instantsite", "redirects", "create")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "r2")
+}
+
+func TestCLI_InstantSite_ProfileGet(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "profile", "get")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "Test Instant Site")
+}
+
+func TestCLI_InstantSite_PagesList(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "pages", "list")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "Home")
+}
+
+func TestCLI_InstantSite_TilesList(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "tiles", "list", "--published")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "COVER")
+}
+
+func TestCLI_InstantSite_ThemesList(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "themes", "list")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "th1")
+}
+
+func TestCLI_InstantSite_Publish(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "draft", "publish")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "published")
+}
+
+func TestCLI_InstantSite_Token(t *testing.T) {
+	srv := newMockServer(t)
+	r := runCLI(t, srv.URL, "instantsite", "token", "--site-id", testStoreID, "--code", "app_secret")
+	if r.exitCode != 0 {
+		t.Fatalf("exit %d: %s", r.exitCode, r.stderr)
+	}
+	assertContains(t, r.stdout, "tok_abc")
 }
 
 // ── Error Handling ──────────────────────────────────────────────────────
