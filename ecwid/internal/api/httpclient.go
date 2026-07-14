@@ -40,9 +40,11 @@ func NewHTTPClient(cfg HTTPClientConfig) *HTTPClient {
 		httpClient = http.DefaultClient
 	}
 
+	// Default to a no-op logger: a library should stay silent unless the caller
+	// opts in via WithLogger, rather than emitting to the global slog.Default().
 	logger := cfg.Logger
 	if logger == nil {
-		logger = slog.Default()
+		logger = slog.New(slog.DiscardHandler)
 	}
 
 	// Wrap transport with retry if configured.

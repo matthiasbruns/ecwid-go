@@ -48,7 +48,7 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 		logger := t.logger
 		if logger == nil {
-			logger = slog.Default()
+			logger = slog.New(slog.DiscardHandler)
 		}
 		logger.Warn("rate limited, retrying",
 			"attempt", attempt+1,

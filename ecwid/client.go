@@ -63,7 +63,9 @@ func WithHTTPClient(c *http.Client) Option {
 	}
 }
 
-// WithLogger sets a custom slog logger. A nil value is ignored.
+// WithLogger sets a custom slog logger. A nil value is ignored. By default the
+// client logs nothing (a no-op handler); pass a logger to opt into request
+// (debug) and rate-limit retry (warn) logging. Credentials are never logged.
 func WithLogger(l *slog.Logger) Option {
 	return func(o *options) {
 		if l != nil {
