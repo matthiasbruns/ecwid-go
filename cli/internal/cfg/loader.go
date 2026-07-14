@@ -15,12 +15,15 @@ import (
 
 // flagBindings maps CLI flag names (kebab-case) to config keys (snake_case).
 var flagBindings = map[string]string{
-	"store-id":    "store_id",
-	"token":       "token",
-	"output":      "output",
-	"log-level":   "log_level",
-	"base-url":    "base_url",
-	"max-retries": "max_retries",
+	"store-id":              "store_id",
+	"token":                 "token",
+	"output":                "output",
+	"log-level":             "log_level",
+	"base-url":              "base_url",
+	"max-retries":           "max_retries",
+	"instant-site-base-url": "instant_site_base_url",
+	"instant-site-auth-url": "instant_site_auth_url",
+	"instant-site-token":    "instant_site_token",
 }
 
 // Load reads configuration from file, environment, and flags using viper.
