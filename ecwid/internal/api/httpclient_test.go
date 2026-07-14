@@ -1,9 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -159,5 +162,75 @@ func TestHTTPClient_Retries(t *testing.T) {
 	}
 	if attempts != 3 {
 		t.Errorf("expected 3 attempts, got %d", attempts)
+	}
+}
+
+// rateLimitOnceServer returns a server that answers the first request with 429
+// (Retry-After: 0) and the second with 200, forcing exactly one retry.
+func rateLimitOnceServer() *httptest.Server {
+	attempts := 0
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
+		if attempts == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+}
+
+// TestHTTPClient_DefaultLoggerIsSilent verifies that, without an explicit
+// logger, the client does not emit to slog.Default() — a library should stay
+// silent unless the caller opts in.
+func TestHTTPClient_DefaultLoggerIsSilent(t *testing.T) {
+	srv := rateLimitOnceServer()
+	defer srv.Close()
+
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer slog.SetDefault(prev)
+
+	c := NewHTTPClient(HTTPClientConfig{
+		BaseURL:    srv.URL + "/api/v3",
+		StoreID:    "123",
+		Token:      "test_token",
+		MaxRetries: 2,
+	})
+
+	var result struct{ OK bool }
+	if err := c.Get(context.Background(), "/test", nil, &result); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("expected no output on slog.Default(), got: %s", buf.String())
+	}
+}
+
+// TestHTTPClient_LoggerReceivesRetryWarn verifies that an explicitly configured
+// logger still receives the rate-limit retry warning.
+func TestHTTPClient_LoggerReceivesRetryWarn(t *testing.T) {
+	srv := rateLimitOnceServer()
+	defer srv.Close()
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	c := NewHTTPClient(HTTPClientConfig{
+		BaseURL:    srv.URL + "/api/v3",
+		StoreID:    "123",
+		Token:      "test_token",
+		MaxRetries: 2,
+		Logger:     logger,
+	})
+
+	var result struct{ OK bool }
+	if err := c.Get(context.Background(), "/test", nil, &result); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "rate limited, retrying") {
+		t.Errorf("expected retry warning in log, got: %s", buf.String())
 	}
 }
