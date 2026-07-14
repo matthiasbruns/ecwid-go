@@ -5,6 +5,9 @@ name: release
 #   2. pin ecwid -> config@<version> and drop the local replace on a release
 #      commit (tagged but NOT pushed to a branch, so main keeps the dev replace)
 #   3. tag + release the `ecwid` SDK (ecwid/<version>)
+#
+# Changelogs are generated per module from conventional-commit history between
+# the previous and new module tag via requarks/changelog-action.
 on:
   workflow_dispatch:
     inputs:
@@ -22,11 +25,11 @@ jobs:
       VERSION: ${{ github.event.inputs.version }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -48,16 +51,35 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Release config module
+      # Capture each module's previous tag BEFORE creating new ones, so the
+      # changelog ranges (prev..new) are scoped per module.
+      - name: Determine previous module tags
+        id: prev
         run: |
-          # Previous config tag (before we create the new one) scopes the
-          # GitHub-generated changelog to this module's release range.
-          PREV_CONFIG="$(git tag -l 'config/v*' --sort=-version:refname | head -n1)"
+          echo "config=$(git tag -l 'config/v*' --sort=-version:refname | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "ecwid=$(git tag -l 'ecwid/v*' --sort=-version:refname | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Tag config module
+        run: |
           git tag "config/${VERSION}"
           git push origin "config/${VERSION}"
-          args=(--title "config ${VERSION}" --generate-notes --verify-tag)
-          [ -n "$PREV_CONFIG" ] && args+=(--notes-start-tag "$PREV_CONFIG")
-          gh release create "config/${VERSION}" "${args[@]}"
+
+      - name: Generate config changelog
+        id: cl_config
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: config/${{ env.VERSION }}
+          toTag: ${{ steps.prev.outputs.config }}
+          writeToFile: false
+          excludeTypes: build,ci,chore,docs,other,style
+
+      - name: Release config module
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: config/${{ env.VERSION }}
+          name: config ${{ env.VERSION }}
+          body: ${{ steps.cl_config.outputs.changes }}
 
       - name: Pin config dependency and tag ecwid SDK
         env:
@@ -66,7 +88,6 @@ jobs:
           GOPROXY: direct
           GOSUMDB: "off"
         run: |
-          PREV_ECWID="$(git tag -l 'ecwid/v*' --sort=-version:refname | head -n1)"
           cd ecwid
           go mod edit -dropreplace=github.com/matthiasbruns/ecwid-go/config
           go mod edit -require="github.com/matthiasbruns/ecwid-go/config@${VERSION}"
@@ -79,8 +100,23 @@ jobs:
           git commit -m "chore(release): ecwid ${VERSION} (pin config ${VERSION})"
           git tag "ecwid/${VERSION}"
           git push origin "ecwid/${VERSION}"
-          # GitHub auto-generates the changelog (What's Changed / New Contributors /
-          # Full Changelog), same engine as the release UI's "Generate release notes".
-          args=(--title "ecwid ${VERSION}" --notes "Requires \`config ${VERSION}\`." --generate-notes --verify-tag)
-          [ -n "$PREV_ECWID" ] && args+=(--notes-start-tag "$PREV_ECWID")
-          gh release create "ecwid/${VERSION}" "${args[@]}"
+
+      - name: Generate ecwid changelog
+        id: cl_ecwid
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: ecwid/${{ env.VERSION }}
+          toTag: ${{ steps.prev.outputs.ecwid }}
+          writeToFile: false
+          excludeTypes: build,ci,chore,docs,other,style
+
+      - name: Release ecwid module
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ecwid/${{ env.VERSION }}
+          name: ecwid ${{ env.VERSION }}
+          body: |
+            Requires `config ${{ env.VERSION }}`.
+
+            ${{ steps.cl_ecwid.outputs.changes }}
