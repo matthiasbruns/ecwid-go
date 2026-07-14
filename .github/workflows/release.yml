@@ -50,12 +50,14 @@ jobs:
 
       - name: Release config module
         run: |
+          # Previous config tag (before we create the new one) scopes the
+          # GitHub-generated changelog to this module's release range.
+          PREV_CONFIG="$(git tag -l 'config/v*' --sort=-version:refname | head -n1)"
           git tag "config/${VERSION}"
           git push origin "config/${VERSION}"
-          gh release create "config/${VERSION}" \
-            --title "config ${VERSION}" \
-            --notes "Release of the config module ${VERSION}." \
-            --verify-tag
+          args=(--title "config ${VERSION}" --generate-notes --verify-tag)
+          [ -n "$PREV_CONFIG" ] && args+=(--notes-start-tag "$PREV_CONFIG")
+          gh release create "config/${VERSION}" "${args[@]}"
 
       - name: Pin config dependency and tag ecwid SDK
         env:
@@ -64,6 +66,7 @@ jobs:
           GOPROXY: direct
           GOSUMDB: "off"
         run: |
+          PREV_ECWID="$(git tag -l 'ecwid/v*' --sort=-version:refname | head -n1)"
           cd ecwid
           go mod edit -dropreplace=github.com/matthiasbruns/ecwid-go/config
           go mod edit -require="github.com/matthiasbruns/ecwid-go/config@${VERSION}"
@@ -76,7 +79,8 @@ jobs:
           git commit -m "chore(release): ecwid ${VERSION} (pin config ${VERSION})"
           git tag "ecwid/${VERSION}"
           git push origin "ecwid/${VERSION}"
-          gh release create "ecwid/${VERSION}" \
-            --title "ecwid ${VERSION}" \
-            --notes "Release of the ecwid SDK ${VERSION} (requires config ${VERSION})." \
-            --verify-tag
+          # GitHub auto-generates the changelog (What's Changed / New Contributors /
+          # Full Changelog), same engine as the release UI's "Generate release notes".
+          args=(--title "ecwid ${VERSION}" --notes "Requires \`config ${VERSION}\`." --generate-notes --verify-tag)
+          [ -n "$PREV_ECWID" ] && args+=(--notes-start-tag "$PREV_ECWID")
+          gh release create "ecwid/${VERSION}" "${args[@]}"
