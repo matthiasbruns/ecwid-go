@@ -33,7 +33,10 @@ func TestCharge(t *testing.T) {
 		}
 
 		var body billing.ChargeRequest
-		data, _ := io.ReadAll(r.Body)
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
 		if err := json.Unmarshal(data, &body); err != nil {
 			t.Fatalf("decode request body: %v", err)
 		}

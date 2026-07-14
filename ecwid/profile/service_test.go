@@ -2,6 +2,7 @@ package profile_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -104,5 +105,79 @@ func TestGet_Error(t *testing.T) {
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
 		t.Errorf("expected 403, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestGet_TaxFields(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"taxes": [
+				{"id": 7, "name": "MwSt.", "enabled": true, "includeInPrice": true, "defaultTax": 0,
+				 "rules": [{"zoneId": "zone-de", "tax": 19}, {"zoneId": "zone-eu", "tax": 7.5}]}
+			],
+			"taxSettings": {"automaticTaxEnabled": true, "pricesIncludeTax": true, "taxExemptBusiness": false},
+			"zones": [{"id": "zone-de", "name": "Deutschland", "countryCodes": ["DE"]}]
+		}`))
+	}))
+	defer srv.Close()
+
+	p, err := newTestService(t, srv).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Taxes) != 1 || p.Taxes[0].ID != 7 {
+		t.Fatalf("expected one top-level tax with id 7, got %+v", p.Taxes)
+	}
+	if len(p.Taxes[0].Rules) != 2 || p.Taxes[0].Rules[0].ZoneID != "zone-de" || p.Taxes[0].Rules[0].Tax != 19 {
+		t.Errorf("expected typed tax rules, got %+v", p.Taxes[0].Rules)
+	}
+	if p.Taxes[0].Rules[1].Tax != 7.5 {
+		t.Errorf("expected fractional rule tax 7.5, got %v", p.Taxes[0].Rules[1].Tax)
+	}
+	if p.TaxSettings == nil || p.TaxSettings.PricesIncludeTax == nil || !*p.TaxSettings.PricesIncludeTax {
+		t.Error("expected taxSettings.pricesIncludeTax=true")
+	}
+	if p.TaxSettings.TaxExemptBusiness == nil || *p.TaxSettings.TaxExemptBusiness {
+		t.Error("expected taxSettings.taxExemptBusiness=false")
+	}
+}
+
+func TestUpdate_TaxRoundTrip(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var got profile.UpdateRequest
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("decode update body: %v", err)
+		}
+		if len(got.Taxes) != 1 || got.Taxes[0].Name != "Kleinunternehmer" {
+			t.Errorf("expected top-level tax to round-trip, got %+v", got.Taxes)
+		}
+		if len(got.Taxes[0].Rules) != 1 || got.Taxes[0].Rules[0].ZoneID != "zone-de" {
+			t.Errorf("expected tax rules to round-trip, got %+v", got.Taxes[0].Rules)
+		}
+		if got.TaxSettings == nil || got.TaxSettings.TaxExemptBusiness == nil || !*got.TaxSettings.TaxExemptBusiness {
+			t.Error("expected taxSettings.taxExemptBusiness=true to round-trip")
+		}
+		if len(got.Zones) != 1 || got.Zones[0].ID != "zone-de" {
+			t.Errorf("expected zones to round-trip, got %+v", got.Zones)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"updateCount":1}`))
+	}))
+	defer srv.Close()
+
+	enabled := true
+	exempt := true
+	_, err := newTestService(t, srv).Update(context.Background(), &profile.UpdateRequest{
+		Taxes: []profile.Tax{{
+			Name:    "Kleinunternehmer",
+			Enabled: &enabled,
+			Rules:   []profile.TaxRule{{ZoneID: "zone-de", Tax: 0}},
+		}},
+		TaxSettings: &profile.TaxSettings{TaxExemptBusiness: &exempt},
+		Zones:       []profile.Zone{{ID: "zone-de", Name: "Deutschland", CountryCodes: []string{"DE"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

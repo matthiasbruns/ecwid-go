@@ -133,7 +133,7 @@ type Person struct {
 // OrderTax represents a tax line applied to an item, surcharge, or shipping.
 type OrderTax struct {
 	Name                    string  `json:"name,omitempty"`
-	Value                   int     `json:"value,omitempty"`
+	Value                   float64 `json:"value,omitempty"`
 	Total                   float64 `json:"total,omitempty"`
 	TaxOnDiscountedSubtotal float64 `json:"taxOnDiscountedSubtotal,omitempty"`
 	TaxOnShipping           float64 `json:"taxOnShipping,omitempty"`
