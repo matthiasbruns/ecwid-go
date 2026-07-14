@@ -1,0 +1,82 @@
+name: release
+
+# Releases the two Go modules in this repo in dependency order:
+#   1. tag + release the `config` module (config/<version>)
+#   2. pin ecwid -> config@<version> and drop the local replace on a release
+#      commit (tagged but NOT pushed to a branch, so main keeps the dev replace)
+#   3. tag + release the `ecwid` SDK (ecwid/<version>)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver tag to release, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Validate version
+        run: |
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::'${VERSION}' is not a valid semver tag (expected vX.Y.Z)"
+            exit 1
+          fi
+          for mod in config ecwid; do
+            if git rev-parse -q --verify "refs/tags/${mod}/${VERSION}" >/dev/null; then
+              echo "::error::tag ${mod}/${VERSION} already exists"
+              exit 1
+            fi
+          done
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Release config module
+        run: |
+          git tag "config/${VERSION}"
+          git push origin "config/${VERSION}"
+          gh release create "config/${VERSION}" \
+            --title "config ${VERSION}" \
+            --notes "Release of the config module ${VERSION}." \
+            --verify-tag
+
+      - name: Pin config dependency and tag ecwid SDK
+        env:
+          GOWORK: "off"
+          GOFLAGS: "-mod=mod"
+          GOPROXY: direct
+          GOSUMDB: "off"
+        run: |
+          cd ecwid
+          go mod edit -dropreplace=github.com/matthiasbruns/ecwid-go/config
+          go mod edit -require="github.com/matthiasbruns/ecwid-go/config@${VERSION}"
+          go mod tidy
+          go build ./...
+          cd ..
+          # Release commit lives only under the ecwid/<version> tag; main keeps
+          # its local replace for workspace development.
+          git add ecwid/go.mod ecwid/go.sum
+          git commit -m "chore(release): ecwid ${VERSION} (pin config ${VERSION})"
+          git tag "ecwid/${VERSION}"
+          git push origin "ecwid/${VERSION}"
+          gh release create "ecwid/${VERSION}" \
+            --title "ecwid ${VERSION}" \
+            --notes "Release of the ecwid SDK ${VERSION} (requires config ${VERSION})." \
+            --verify-tag

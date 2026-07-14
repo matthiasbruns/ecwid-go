@@ -40,8 +40,9 @@ type Order struct {
 	PaymentModule  string `json:"paymentModule,omitempty"`
 	PaymentMessage string `json:"paymentMessage,omitempty"`
 
-	FulfillmentStatus     string `json:"fulfillmentStatus,omitempty"`
-	ExternalTransactionID string `json:"externalTransactionId,omitempty"`
+	FulfillmentStatus      string `json:"fulfillmentStatus,omitempty"`
+	ExternalTransactionID  string `json:"externalTransactionId,omitempty"`
+	ExternalTransactionURL string `json:"externalTransactionUrl,omitempty"`
 
 	// Customer
 	Email              string `json:"email,omitempty"`
@@ -56,18 +57,18 @@ type Order struct {
 	B2BB2C             string `json:"b2b_b2c,omitempty"`
 
 	// Addresses
-	BillingPerson  json.RawMessage `json:"billingPerson,omitempty"`
-	ShippingPerson json.RawMessage `json:"shippingPerson,omitempty"`
+	BillingPerson  *Person `json:"billingPerson,omitempty"`
+	ShippingPerson *Person `json:"shippingPerson,omitempty"`
 
 	// Shipping
-	ShippingOption    json.RawMessage `json:"shippingOption,omitempty"`
+	ShippingOption    *ShippingOption `json:"shippingOption,omitempty"`
 	TrackingNumber    string          `json:"trackingNumber,omitempty"`
 	HandlingFee       json.RawMessage `json:"handlingFee,omitempty"`
 	PredictedPackages json.RawMessage `json:"predictedPackages,omitempty"`
 	Shipments         json.RawMessage `json:"shipments,omitempty"`
 
 	// Items
-	Items json.RawMessage `json:"items,omitempty"`
+	Items []OrderItem `json:"items,omitempty"`
 
 	// Discounts
 	CustomDiscount json.RawMessage `json:"customDiscount,omitempty"`
@@ -75,12 +76,12 @@ type Order struct {
 	DiscountCoupon json.RawMessage `json:"discountCoupon,omitempty"`
 
 	// Surcharges
-	CustomSurcharges json.RawMessage `json:"customSurcharges,omitempty"`
+	CustomSurcharges []OrderSurcharge `json:"customSurcharges,omitempty"`
 
 	// Tax
-	PricesIncludeTax   *bool           `json:"pricesIncludeTax,omitempty"`
-	TaxesOnShipping    json.RawMessage `json:"taxesOnShipping,omitempty"`
-	ReversedTaxApplied *bool           `json:"reversedTaxApplied,omitempty"`
+	PricesIncludeTax   *bool      `json:"pricesIncludeTax,omitempty"`
+	TaxesOnShipping    []OrderTax `json:"taxesOnShipping,omitempty"`
+	ReversedTaxApplied *bool      `json:"reversedTaxApplied,omitempty"`
 
 	// Notes
 	OrderComments     string `json:"orderComments,omitempty"`
@@ -104,13 +105,102 @@ type Order struct {
 	Hidden           *bool           `json:"hidden,omitempty"`
 	ExtraFields      json.RawMessage `json:"extraFields,omitempty"`
 	OrderExtraFields json.RawMessage `json:"orderExtraFields,omitempty"`
-	Invoices         json.RawMessage `json:"invoices,omitempty"`
+	Invoices         []Invoice       `json:"invoices,omitempty"`
 	Refunds          json.RawMessage `json:"refunds,omitempty"`
 	CreditCardStatus json.RawMessage `json:"creditCardStatus,omitempty"`
 	PickupTime       string          `json:"pickupTime,omitempty"`
 	Lang             string          `json:"lang,omitempty"`
 	AdditionalInfo   json.RawMessage `json:"additionalInfo,omitempty"`
 	PaymentParams    json.RawMessage `json:"paymentParams,omitempty"`
+}
+
+// Person represents a billing or shipping person on an order.
+type Person struct {
+	Name                string `json:"name,omitempty"`
+	FirstName           string `json:"firstName,omitempty"`
+	LastName            string `json:"lastName,omitempty"`
+	CompanyName         string `json:"companyName,omitempty"`
+	Street              string `json:"street,omitempty"`
+	City                string `json:"city,omitempty"`
+	CountryCode         string `json:"countryCode,omitempty"`
+	CountryName         string `json:"countryName,omitempty"`
+	PostalCode          string `json:"postalCode,omitempty"`
+	StateOrProvinceCode string `json:"stateOrProvinceCode,omitempty"`
+	StateOrProvinceName string `json:"stateOrProvinceName,omitempty"`
+	Phone               string `json:"phone,omitempty"`
+}
+
+// OrderTax represents a tax line applied to an item, surcharge, or shipping.
+type OrderTax struct {
+	Name                    string  `json:"name,omitempty"`
+	Value                   float64 `json:"value,omitempty"`
+	Total                   float64 `json:"total,omitempty"`
+	TaxOnDiscountedSubtotal float64 `json:"taxOnDiscountedSubtotal,omitempty"`
+	TaxOnShipping           float64 `json:"taxOnShipping,omitempty"`
+	IncludeInPrice          bool    `json:"includeInPrice,omitempty"`
+	SourceTaxRateID         int64   `json:"sourceTaxRateId,omitempty"`
+	SourceTaxRateType       string  `json:"sourceTaxRateType,omitempty"`
+	TaxClassName            string  `json:"taxClassName,omitempty"`
+	TaxClassCode            string  `json:"taxClassCode,omitempty"`
+}
+
+// OrderItemDiscountInfo describes a discount applied to an order item.
+type OrderItemDiscountInfo struct {
+	Value float64 `json:"value,omitempty"`
+	Type  string  `json:"type,omitempty"`
+	Base  string  `json:"base,omitempty"`
+}
+
+// OrderItemDiscount represents a single discount on an order item.
+type OrderItemDiscount struct {
+	DiscountInfo OrderItemDiscountInfo `json:"discountInfo"`
+	Total        float64               `json:"total,omitempty"`
+}
+
+// OrderItem represents a single line item in an order.
+type OrderItem struct {
+	ID              int64               `json:"id,omitempty"`
+	ProductID       int64               `json:"productId,omitempty"`
+	CategoryID      int64               `json:"categoryId,omitempty"`
+	Price           float64             `json:"price,omitempty"`
+	PriceWithoutTax float64             `json:"priceWithoutTax,omitempty"`
+	ProductPrice    float64             `json:"productPrice,omitempty"`
+	SKU             string              `json:"sku,omitempty"`
+	Quantity        int                 `json:"quantity,omitempty"`
+	Name            string              `json:"name,omitempty"`
+	Tax             float64             `json:"tax,omitempty"`
+	Shipping        float64             `json:"shipping,omitempty"`
+	Weight          float64             `json:"weight,omitempty"`
+	CouponApplied   bool                `json:"couponApplied,omitempty"`
+	CouponAmount    float64             `json:"couponAmount,omitempty"`
+	Digital         bool                `json:"digital,omitempty"`
+	GiftCard        bool                `json:"giftCard,omitempty"`
+	Taxable         bool                `json:"taxable,omitempty"`
+	Discounts       []OrderItemDiscount `json:"discounts,omitempty"`
+	Taxes           []OrderTax          `json:"taxes,omitempty"`
+}
+
+// OrderSurcharge represents a custom surcharge applied to an order.
+type OrderSurcharge struct {
+	ID              string     `json:"id,omitempty"`
+	Value           float64    `json:"value,omitempty"`
+	Type            string     `json:"type,omitempty"`
+	Total           float64    `json:"total,omitempty"`
+	TotalWithoutTax float64    `json:"totalWithoutTax,omitempty"`
+	Description     string     `json:"description,omitempty"`
+	Taxable         bool       `json:"taxable,omitempty"`
+	Taxes           []OrderTax `json:"taxes,omitempty"`
+}
+
+// ShippingOption represents the shipping method chosen for an order.
+type ShippingOption struct {
+	ShippingMethodID       string  `json:"shippingMethodId,omitempty"`
+	ShippingMethodName     string  `json:"shippingMethodName,omitempty"`
+	ShippingRate           float64 `json:"shippingRate,omitempty"`
+	ShippingRateWithoutTax float64 `json:"shippingRateWithoutTax,omitempty"`
+	EstimatedTransitTime   string  `json:"estimatedTransitTime,omitempty"`
+	IsPickup               bool    `json:"isPickup,omitempty"`
+	FulfillmentType        string  `json:"fulfillmentType,omitempty"`
 }
 
 // SearchResult is the paginated response from the orders search API.

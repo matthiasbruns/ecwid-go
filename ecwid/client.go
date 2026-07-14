@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"github.com/matthiasbruns/ecwid-go/config"
+	"github.com/matthiasbruns/ecwid-go/ecwid/billing"
 	"github.com/matthiasbruns/ecwid-go/ecwid/carts"
 	"github.com/matthiasbruns/ecwid-go/ecwid/categories"
 	"github.com/matthiasbruns/ecwid-go/ecwid/customers"
@@ -30,6 +31,7 @@ import (
 
 // Client is the Ecwid API client. It is safe for concurrent use.
 type Client struct {
+	Billing       *billing.Service
 	Carts         *carts.Service
 	Categories    *categories.Service
 	Customers     *customers.Service
@@ -96,6 +98,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	})
 
 	return &Client{
+		Billing:       billing.NewService(requester),
 		Carts:         carts.NewService(requester),
 		Categories:    categories.NewService(requester),
 		Customers:     customers.NewService(requester),

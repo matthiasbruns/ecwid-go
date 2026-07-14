@@ -13,6 +13,7 @@ type Profile struct {
 	FormatsAndUnits        *FormatsAndUnits      `json:"formatsAndUnits,omitempty"`
 	Languages              *Languages            `json:"languages,omitempty"`
 	Shipping               *Shipping             `json:"shipping,omitempty"`
+	Taxes                  []Tax                 `json:"taxes,omitempty"`
 	TaxSettings            *TaxSettings          `json:"taxSettings,omitempty"`
 	Zones                  []Zone                `json:"zones,omitempty"`
 	BusinessRegistrationID *BusinessRegistration `json:"businessRegistrationID,omitempty"`
@@ -141,20 +142,28 @@ type HandlingFee struct {
 // TaxSettings holds store tax settings.
 type TaxSettings struct {
 	AutomaticTaxEnabled *bool `json:"automaticTaxEnabled,omitempty"`
+	PricesIncludeTax    *bool `json:"pricesIncludeTax,omitempty"`
+	TaxExemptBusiness   *bool `json:"taxExemptBusiness,omitempty"`
 	Taxes               []Tax `json:"taxes,omitempty"`
 }
 
 // Tax represents a tax configuration.
 type Tax struct {
-	ID                 int64           `json:"id"`
-	Name               string          `json:"name,omitempty"`
-	Enabled            *bool           `json:"enabled,omitempty"`
-	IncludeInPrice     *bool           `json:"includeInPrice,omitempty"`
-	UseShippingAddress *bool           `json:"useShippingAddress,omitempty"`
-	TaxShipping        *bool           `json:"taxShipping,omitempty"`
-	AppliedByDefault   *bool           `json:"appliedByDefault,omitempty"`
-	DefaultTax         float64         `json:"defaultTax,omitempty"`
-	Rules              json.RawMessage `json:"rules,omitempty"`
+	ID                 int64     `json:"id,omitempty"`
+	Name               string    `json:"name,omitempty"`
+	Enabled            *bool     `json:"enabled,omitempty"`
+	IncludeInPrice     *bool     `json:"includeInPrice,omitempty"`
+	UseShippingAddress *bool     `json:"useShippingAddress,omitempty"`
+	TaxShipping        *bool     `json:"taxShipping,omitempty"`
+	AppliedByDefault   *bool     `json:"appliedByDefault,omitempty"`
+	DefaultTax         float64   `json:"defaultTax,omitempty"`
+	Rules              []TaxRule `json:"rules,omitempty"`
+}
+
+// TaxRule maps a destination zone to a tax rate.
+type TaxRule struct {
+	ZoneID string  `json:"zoneId"`
+	Tax    float64 `json:"tax"`
 }
 
 // Zone represents a destination zone.
@@ -197,7 +206,9 @@ type UpdateRequest struct {
 	Company         *Company         `json:"company,omitempty"`
 	FormatsAndUnits *FormatsAndUnits `json:"formatsAndUnits,omitempty"`
 	Languages       *Languages       `json:"languages,omitempty"`
+	Taxes           []Tax            `json:"taxes,omitempty"`
 	TaxSettings     *TaxSettings     `json:"taxSettings,omitempty"`
+	Zones           []Zone           `json:"zones,omitempty"`
 }
 
 // UpdateResult represents the response from an update operation.
