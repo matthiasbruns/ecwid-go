@@ -171,7 +171,7 @@ func (s *Service) UpdatePage(ctx context.Context, pageID string, page *Page) (*P
 	if pageID == "" {
 		return nil, errors.New("pageID must not be empty")
 	}
-	path := fmt.Sprintf("/page/%s", pageID)
+	path := "/page/" + url.PathEscape(pageID)
 
 	var result Page
 	if err := s.v1.Put(ctx, path, page, &result); err != nil {
@@ -188,7 +188,7 @@ func (s *Service) DeletePage(ctx context.Context, pageID string) (*Page, error) 
 	if pageID == "" {
 		return nil, errors.New("pageID must not be empty")
 	}
-	path := fmt.Sprintf("/page/%s", pageID)
+	path := "/page/" + url.PathEscape(pageID)
 
 	var result Page
 	if err := s.v1.Delete(ctx, path, &result); err != nil {
@@ -233,7 +233,7 @@ func (s *Service) GetTile(ctx context.Context, tileID string) (*Tile, error) {
 	if tileID == "" {
 		return nil, errors.New("tileID must not be empty")
 	}
-	path := fmt.Sprintf("/tile/%s", tileID)
+	path := "/tile/" + url.PathEscape(tileID)
 
 	var result Tile
 	if err := s.v1.Get(ctx, path, nil, &result); err != nil {
@@ -262,7 +262,7 @@ func (s *Service) UpdateTile(ctx context.Context, tileID string, tile *TileUpdat
 	if tileID == "" {
 		return nil, errors.New("tileID must not be empty")
 	}
-	path := fmt.Sprintf("/tile/%s", tileID)
+	path := "/tile/" + url.PathEscape(tileID)
 
 	var result Tile
 	if err := s.v1.Put(ctx, path, tile, &result); err != nil {
@@ -292,7 +292,7 @@ func (s *Service) DeleteTile(ctx context.Context, tileID string) (*Tile, error) 
 	if tileID == "" {
 		return nil, errors.New("tileID must not be empty")
 	}
-	path := fmt.Sprintf("/tile/%s", tileID)
+	path := "/tile/" + url.PathEscape(tileID)
 
 	var result Tile
 	if err := s.v1.Delete(ctx, path, &result); err != nil {
@@ -321,7 +321,7 @@ func (s *Service) TileConfig(ctx context.Context, configType string) (*TileConfi
 	if configType == "" {
 		return nil, errors.New("configType must not be empty")
 	}
-	path := fmt.Sprintf("/tile/config/%s", configType)
+	path := "/tile/config/" + url.PathEscape(configType)
 
 	var result TileConfigResult
 	if err := s.v1.Get(ctx, path, nil, &result); err != nil {
@@ -341,7 +341,7 @@ func (s *Service) ReserveTileImage(ctx context.Context, tileID string) (*Reserve
 	if tileID == "" {
 		return nil, errors.New("tileID must not be empty")
 	}
-	path := fmt.Sprintf("/tile/%s/image", tileID)
+	path := "/tile/" + url.PathEscape(tileID) + "/image"
 
 	var result ReserveImageResult
 	if err := s.v1.Post(ctx, path, struct{}{}, &result); err != nil {
@@ -358,7 +358,7 @@ func (s *Service) GetImage(ctx context.Context, imageID string) (*ImageResult, e
 	if imageID == "" {
 		return nil, errors.New("imageID must not be empty")
 	}
-	path := fmt.Sprintf("/image/%s", imageID)
+	path := "/image/" + url.PathEscape(imageID)
 
 	var result ImageResult
 	if err := s.v1.Get(ctx, path, nil, &result); err != nil {
@@ -413,7 +413,7 @@ func (s *Service) UpdateTheme(ctx context.Context, themeID string, colors *Theme
 	if themeID == "" {
 		return nil, errors.New("themeID must not be empty")
 	}
-	path := fmt.Sprintf("/themes/%s", themeID)
+	path := "/themes/" + url.PathEscape(themeID)
 
 	var result Theme
 	if err := s.v1.Put(ctx, path, themeBody(colors), &result); err != nil {
@@ -430,7 +430,7 @@ func (s *Service) DeleteTheme(ctx context.Context, themeID string) (*Theme, erro
 	if themeID == "" {
 		return nil, errors.New("themeID must not be empty")
 	}
-	path := fmt.Sprintf("/themes/%s", themeID)
+	path := "/themes/" + url.PathEscape(themeID)
 
 	var result Theme
 	if err := s.v1.Delete(ctx, path, &result); err != nil {
@@ -524,7 +524,7 @@ func (s *Service) GetRedirect(ctx context.Context, redirectID string) (*Redirect
 	if redirectID == "" {
 		return nil, errors.New("redirectID must not be empty")
 	}
-	path := fmt.Sprintf("/instant-site/redirects/%s", redirectID)
+	path := "/instant-site/redirects/" + url.PathEscape(redirectID)
 
 	var result Redirect
 	if err := s.main.Get(ctx, path, nil, &result); err != nil {
@@ -553,7 +553,7 @@ func (s *Service) UpdateRedirect(ctx context.Context, redirectID string, redirec
 	if redirectID == "" {
 		return nil, errors.New("redirectID must not be empty")
 	}
-	path := fmt.Sprintf("/instant-site/redirects/%s", redirectID)
+	path := "/instant-site/redirects/" + url.PathEscape(redirectID)
 
 	var result Redirect
 	if err := s.main.Put(ctx, path, redirect, &result); err != nil {

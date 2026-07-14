@@ -61,7 +61,7 @@ type Profile struct {
 	Email                                  string               `json:"email,omitempty"`
 	DateFormat                             string               `json:"dateFormat,omitempty"`
 	TimeFormat                             string               `json:"timeFormat,omitempty"`
-	TimezoneOffsetInMinutes                int                  `json:"timezoneOffsetInMinutes,omitempty"`
+	TimezoneOffsetInMinutes                *int                 `json:"timezoneOffsetInMinutes,omitempty"`
 	StoreClosed                            *bool                `json:"storeClosed,omitempty"`
 	StoreSuspended                         *bool                `json:"storeSuspended,omitempty"`
 	IsTemplateSite                         *bool                `json:"isTemplateSite,omitempty"`
