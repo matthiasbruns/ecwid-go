@@ -166,8 +166,14 @@ h, err := webhooks.NewHandler(clientSecret, func(ctx context.Context, e webhooks
 	if e.EventType != webhooks.EventOrderCreated {
 		return
 	}
-	// Re-fetch rather than trusting e.Data — see the caveat below.
-	order, err := client.Orders.Get(ctx, e.EntityID)
+	// Order events carry the *internal* ID in EntityID, which the order
+	// endpoints don't accept — the usable one is in the payload.
+	d, err := e.OrderData()
+	if err != nil {
+		return
+	}
+	// Re-fetch rather than trusting the rest of e.Data — see the caveat below.
+	order, err := client.Orders.Get(ctx, d.OrderID)
 	// ...
 }, &webhooks.Options{MaxAge: 5 * time.Minute})
 if err != nil {

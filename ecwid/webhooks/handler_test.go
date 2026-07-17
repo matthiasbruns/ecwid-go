@@ -325,7 +325,7 @@ func TestHandler_OnErrorNeverLeaksSecrets(t *testing.T) {
 }
 
 func TestHandler_SuccessCode(t *testing.T) {
-	for _, code := range successCodes {
+	for _, code := range successCodes() {
 		t.Run(fmt.Sprint(code), func(t *testing.T) {
 			var rec recorder
 			h := newTestHandler(t, rec.handle, &Options{SuccessCode: code})
@@ -409,15 +409,37 @@ func TestHandler_RespondsBeforeCallback(t *testing.T) {
 	}
 	req.Header.Set(SignatureHeader, sign(testEventCreated, testEventID, testSecret))
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("Do() = %v", err)
+	// Do runs asynchronously: should the handler ever wait for the callback
+	// before responding, it and the callback would wait on each other forever,
+	// and a synchronous Do would hang the test rather than fail it.
+	type result struct {
+		status int
+		err    error
 	}
-	defer func() { _ = resp.Body.Close() }()
+	done := make(chan result, 1)
+	go func() {
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			done <- result{err: err}
+			return
+		}
+		defer func() { _ = resp.Body.Close() }()
+		done <- result{status: resp.StatusCode}
+	}()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("Do() = %v", got.err)
+		}
+		if got.status != http.StatusOK {
+			t.Errorf("status = %d, want %d", got.status, http.StatusOK)
+		}
+	case <-time.After(5 * time.Second):
+		close(responded) // Unblock the callback so the server can shut down.
+		t.Fatal("handler did not respond until after the callback ran")
 	}
+
 	close(responded)
 
 	select {

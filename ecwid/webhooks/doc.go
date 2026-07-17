@@ -55,8 +55,15 @@
 //		if e.EventType != webhooks.EventOrderCreated {
 //			return
 //		}
-//		// Re-fetch rather than trusting e.Data.
-//		order, err := client.Orders.Get(ctx, e.EntityID)
+//		// Order events are the exception to re-fetching by EntityID: theirs is
+//		// the internal ID, which the order endpoints do not accept. The ID they
+//		// want is in the payload.
+//		d, err := e.OrderData()
+//		if err != nil {
+//			return
+//		}
+//		// Re-fetch rather than trusting the rest of e.Data.
+//		order, err := client.Orders.Get(ctx, d.OrderID)
 //		// ...
 //	}, &webhooks.Options{MaxAge: 5 * time.Minute})
 //	if err != nil {

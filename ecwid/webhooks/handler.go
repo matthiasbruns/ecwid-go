@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"time"
 )
 
@@ -16,15 +15,26 @@ import (
 // unauthenticated POST cannot exhaust memory.
 const maxBodyBytes = 1 << 20 // 1 MiB
 
-// successCodes are the responses Ecwid accepts as a successful delivery.
+// isSuccessCode reports whether Ecwid accepts status as a successful delivery.
 // Everything else, including 203, 208 and every 3xx, is a failed delivery that
 // Ecwid will retry.
-var successCodes = []int{
-	http.StatusOK,        // 200
-	http.StatusCreated,   // 201
-	http.StatusAccepted,  // 202
-	http.StatusNoContent, // 204
-	209,                  // no net/http constant; not a registered IANA code
+func isSuccessCode(status int) bool {
+	switch status {
+	case http.StatusOK, // 200
+		http.StatusCreated,   // 201
+		http.StatusAccepted,  // 202
+		http.StatusNoContent, // 204
+		209:                  // no net/http constant; not a registered IANA code
+		return true
+	default:
+		return false
+	}
+}
+
+// successCodes lists those same codes for error messages and tests. It returns a
+// fresh slice per call, so there is no package-level state to mutate.
+func successCodes() []int {
+	return []int{http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent, 209}
 }
 
 // Deduper records which events have been processed, so a replayed or retried
@@ -38,6 +48,14 @@ var successCodes = []int{
 // never expires, retaining them longer is what blunts a replay. There is no
 // built-in implementation: dedupe state must be shared across every replica of
 // your service, so it belongs in whatever store you already run.
+//
+// Seen is called on receipt, before the callback runs, because marking an event
+// only after the callback would let two concurrent deliveries — or a replay
+// arriving mid-callback — both through, which is the case this exists to stop.
+// The cost is a crash window: if the process dies between Seen and the callback
+// completing, Ecwid's retry is deduped and the event is dropped. If losing an
+// event is worse for you than handling one twice, have the callback record its
+// own completion and let Seen consult that.
 type Deduper interface {
 	// Seen records eventID and reports whether it was already present.
 	Seen(ctx context.Context, eventID string) (bool, error)
@@ -100,7 +118,8 @@ type Handler struct {
 //
 // Treat [Event.Data] as a hint about what changed, not as fact — it is not
 // covered by the signature. Re-fetch the entity by [Event.EntityID] over the
-// REST API before acting on it.
+// REST API before acting on it. Order events are the exception: their EntityID
+// is the internal order ID, so re-fetch those by [OrderData.OrderID] instead.
 func NewHandler(clientSecret string, handle func(ctx context.Context, e Event), opts *Options) (*Handler, error) {
 	if clientSecret == "" {
 		return nil, errors.New("webhooks: clientSecret must not be empty")
@@ -116,8 +135,8 @@ func NewHandler(clientSecret string, handle func(ctx context.Context, e Event), 
 	if code == 0 {
 		code = http.StatusOK
 	}
-	if !slices.Contains(successCodes, code) {
-		return nil, fmt.Errorf("webhooks: SuccessCode %d is not one Ecwid accepts (want one of %v)", code, successCodes)
+	if !isSuccessCode(code) {
+		return nil, fmt.Errorf("webhooks: SuccessCode %d is not one Ecwid accepts (want one of %v)", code, successCodes())
 	}
 	if opts.MaxAge < 0 {
 		return nil, fmt.Errorf("webhooks: MaxAge must not be negative, got %s", opts.MaxAge)
