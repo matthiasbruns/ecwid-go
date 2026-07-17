@@ -8,6 +8,7 @@ Go client library and CLI for the [Ecwid REST API](https://docs.ecwid.com/api-re
 ## Features
 
 - **Full Ecwid API coverage** — Products, Orders, Customers, Categories, Carts, Subscriptions, Promotions, Coupons, Reviews, Store Profile, Staff, Domains, Instant Site, Dictionaries, Reports
+- **Webhooks** — Typed events, constant-time signature verification that fails closed, and an `http.Handler` with replay defenses
 - **Stdlib only** — Zero external dependencies in config and client modules
 - **Stateless** — No internal state; credentials passed explicitly per client
 - **Multi-module** — Clean separation: `config/`, `ecwid/`, `cli/` with independent `go.mod`s
@@ -156,6 +157,36 @@ Ecwid allows **600 requests/minute per token**.
 - `MaxRetries: 0` (default): 429 responses surface as `*ecwid.RateLimitError` with `RetryAfter`.
 - `MaxRetries: N`: Client auto-retries up to N times, respecting `Retry-After` and context cancellation.
 
+## Webhooks
+
+`ecwid/webhooks` provides typed events, signature verification, and an `http.Handler`:
+
+```go
+h, err := webhooks.NewHandler(clientSecret, func(ctx context.Context, e webhooks.Event) {
+	if e.EventType != webhooks.EventOrderCreated {
+		return
+	}
+	// Re-fetch rather than trusting e.Data — see the caveat below.
+	order, err := client.Orders.Get(ctx, e.EntityID)
+	// ...
+}, &webhooks.Options{MaxAge: 5 * time.Minute})
+if err != nil {
+	return err
+}
+mux.Handle("POST /webhooks/ecwid", h)
+```
+
+The handler responds before running your callback (Ecwid allows 10s), fails closed on a
+missing signature, and defaults to a 200 — Ecwid counts 203, 208 and every 3xx as a failed
+delivery, so an endpoint that redirects HTTP to HTTPS silently never receives a webhook.
+
+> **The webhook signature does not cover the request body.** It is an HMAC over only
+> `"<eventCreated>.<eventId>"`, keyed with the app's `client_secret`. Everything else —
+> `storeId`, `eventType`, `entityId`, `data` — is unauthenticated, and a captured webhook
+> stays replayable forever. Dedupe on `EventID` (`Options.Deduper`), bound staleness with
+> `Options.MaxAge`, and re-fetch the entity by `EntityID` instead of trusting `Data`.
+> See the [package docs](https://pkg.go.dev/github.com/matthiasbruns/ecwid-go/ecwid/webhooks).
+
 ## API Coverage
 
 | Domain | Service | Status |
@@ -175,6 +206,7 @@ Ecwid allows **600 requests/minute per token**.
 | Dictionaries | `DictionaryService` | 🔲 |
 | Staff | `StaffService` | 🔲 |
 | Reports | `ReportService` | 🔲 |
+| Webhooks | `webhooks` package | ✅ |
 | CLI | Cobra commands | 🔲 |
 | E2E Tests | Real store tests | 🔲 |
 
