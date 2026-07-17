@@ -496,6 +496,8 @@ func TestHandler_CallbackContextNotCanceled(t *testing.T) {
 	}
 }
 
+// Distinct events delivered at once must all get through: dedupe must suppress
+// replays without serializing or dropping unrelated traffic.
 func TestHandler_ConcurrentDeliveries(t *testing.T) {
 	var rec recorder
 	dd := &mapDeduper{}
@@ -518,5 +520,36 @@ func TestHandler_ConcurrentDeliveries(t *testing.T) {
 
 	if got := len(rec.get()); got != n {
 		t.Errorf("callback fired %d times, want %d", got, n)
+	}
+}
+
+// The same event replayed concurrently must reach the callback once. This is the
+// case a non-atomic Deduper — one that checks, then sets — lets slip, and the
+// reason [Deduper] requires the two to be a single step.
+func TestHandler_ConcurrentReplaysOfSameEvent(t *testing.T) {
+	var rec recorder
+	dd := &mapDeduper{}
+	h := newTestHandler(t, rec.handle, &Options{Deduper: dd})
+
+	// One signed body, delivered many times at once — exactly what an attacker
+	// replaying a captured webhook, or Ecwid retrying a slow delivery, produces.
+	const n = 20
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range n {
+		wg.Go(func() {
+			<-start // Maximize overlap on the check-and-set.
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, newRequest(orderCreatedBody, nil))
+			if w.Code != http.StatusOK {
+				t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	if got := len(rec.get()); got != 1 {
+		t.Errorf("callback fired %d times for %d concurrent replays of one event, want 1", got, n)
 	}
 }
