@@ -28,9 +28,9 @@ with a real Ecwid REST route** (real routes live under `/api/v3/`). Register
 control-plane endpoints only under `/_mock/`.
 
 Routing uses `net/http.ServeMux` with Go 1.22+ method+pattern syntax
-(`"GET /_mock/health"`, `"POST /_mock/webhooks/trigger"`). Add routes in
-`internal/server/routes` (`server.routes()`), keeping one handler file per
-concern.
+(`"GET /_mock/health"`, `"POST /_mock/webhooks/trigger"`). Register routes in
+`server.routes()` (`internal/server/server.go`), keeping one handler file per
+concern under `internal/server/`.
 
 ## Structure
 

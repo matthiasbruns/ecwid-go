@@ -32,6 +32,13 @@ import (
 // mitigating slow-header (Slowloris) clients. Required by gosec/golangci.
 const readHeaderTimeout = 10 * time.Second
 
+// readTimeout bounds how long the server waits for a full request (headers plus
+// body), so a slow client cannot hold a connection open indefinitely.
+const readTimeout = 30 * time.Second
+
+// idleTimeout bounds how long an idle keep-alive connection is retained.
+const idleTimeout = 120 * time.Second
+
 // shutdownTimeout bounds graceful shutdown before in-flight requests are
 // abandoned.
 const shutdownTimeout = 10 * time.Second
@@ -66,6 +73,11 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 		Addr:              addr,
 		Handler:           logRequests(log, mux),
 		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		IdleTimeout:       idleTimeout,
+		// WriteTimeout is intentionally left unset: later issues add streaming /
+		// long-poll control endpoints (e.g. the admin shell's live webhook
+		// delivery log) that a fixed write deadline would sever mid-response.
 	}
 
 	return s

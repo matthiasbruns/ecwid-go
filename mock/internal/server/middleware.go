@@ -9,19 +9,25 @@ import (
 // statusRecorder captures the response status code and byte count for logging.
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
-	bytes  int
+	status      int
+	bytes       int
+	wroteHeader bool
 }
 
 func (r *statusRecorder) WriteHeader(code int) {
-	r.status = code
+	// Only the first WriteHeader reaches the client, so record only the first to
+	// keep the logged status consistent with what was actually sent.
+	if !r.wroteHeader {
+		r.status = code
+		r.wroteHeader = true
+	}
 	r.ResponseWriter.WriteHeader(code)
 }
 
 func (r *statusRecorder) Write(b []byte) (int, error) {
-	if r.status == 0 {
-		r.status = http.StatusOK
-	}
+	// An implicit WriteHeader(200) fires on first Write; mark it so a later
+	// explicit WriteHeader cannot retroactively change the recorded status.
+	r.wroteHeader = true
 	n, err := r.ResponseWriter.Write(b)
 	r.bytes += n
 	return n, err

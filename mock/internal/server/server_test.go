@@ -55,8 +55,14 @@ func TestRun_GracefulShutdown(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- srv.Run(ctx) }()
 
-	// Give the listener a moment to come up, then signal shutdown.
-	time.Sleep(50 * time.Millisecond)
+	// Give the listener a moment to come up. If Run returns during this window it
+	// failed to start — fail fast rather than masking it until the later timeout.
+	select {
+	case err := <-done:
+		t.Fatalf("Run returned before shutdown was requested: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
 	cancel()
 
 	select {
