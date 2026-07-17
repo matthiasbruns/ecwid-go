@@ -13,18 +13,19 @@ func TestPayload_RedactsTokens(t *testing.T) {
 	p := samplerPayload()
 	secrets := []string{p.AccessToken, p.PublicToken}
 
-	// fmt "%v" and "%s" and "%+v" all route through String().
-	for _, format := range []string{"%v", "%s", "%+v"} {
+	// Every verb routes through Format, including %#v and non-string verbs like
+	// %d that would otherwise leak the raw field values.
+	for _, format := range []string{"%v", "%s", "%+v", "%#v", "%d", "%q"} {
 		out := fmt.Sprintf(format, p)
 		for _, secret := range secrets {
 			if strings.Contains(out, secret) {
 				t.Errorf("Sprintf(%q) leaked secret %q: %s", format, secret, out)
 			}
 		}
-		// Non-secret fields should still be visible for diagnostics.
-		if !strings.Contains(out, p.Lang) {
-			t.Errorf("Sprintf(%q) dropped non-secret field lang: %s", format, out)
-		}
+	}
+	// Non-secret fields stay visible for diagnostics.
+	if out := p.String(); !strings.Contains(out, p.Lang) {
+		t.Errorf("String() dropped non-secret field lang: %s", out)
 	}
 
 	// A value (not pointer) must redact too — String has a value receiver.

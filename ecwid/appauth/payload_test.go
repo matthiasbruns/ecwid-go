@@ -133,15 +133,21 @@ func TestDecrypt_NonMultipleCiphertext(t *testing.T) {
 	}
 }
 
-// tamperLastBlock flips a byte in the final ciphertext block so PKCS#7 unpadding
-// fails, without changing the length.
+// tamperLastBlock deterministically corrupts the PKCS#7 padding without changing
+// the length. In CBC, plaintext block N depends on ciphertext block N XOR
+// ciphertext block N-1, so flipping a byte of block N-1 flips exactly the
+// corresponding byte of plaintext block N. Flipping the last byte of the
+// second-to-last ciphertext block (offset len-17) thus flips only the final
+// padding byte — always invalid. Flipping the final ciphertext block instead
+// would randomize the whole last plaintext block via the avalanche effect,
+// leaving a ~1/256 chance the result is still valid padding and the test flakes.
 func tamperLastBlock(t *testing.T, enc string) string {
 	t.Helper()
 	decoded, err := decodeURLSafeBase64(enc)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	decoded[len(decoded)-1] ^= 0xFF
+	decoded[len(decoded)-17] ^= 0xFF
 	return encodeURLSafeBase64(decoded)
 }
 
