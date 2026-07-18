@@ -73,10 +73,11 @@ func ExampleHandler() {
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
+
+	// ServeHTTP runs the callback synchronously — after flushing the response but
+	// before returning — so the callback's line prints before this status line.
 	fmt.Println("status:", rec.Code)
 
-	// The handler responds before running the callback, so the callback's line
-	// prints first.
 	// Output:
 	// handled: order.created entity 103878161
 	// status: 200
