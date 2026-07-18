@@ -46,12 +46,13 @@ const shutdownTimeout = 10 * time.Second
 
 // Server wraps the HTTP server and its configuration.
 type Server struct {
-	cfg     config.Config
-	log     *slog.Logger
-	mux     *http.ServeMux
-	http    *http.Server
-	store   *appStorage
-	trigger *webhook.Trigger
+	cfg      config.Config
+	log      *slog.Logger
+	mux      *http.ServeMux
+	http     *http.Server
+	store    *appStorage
+	fixtures *fixtureStore
+	trigger  *webhook.Trigger
 
 	// upstreamBase is the scheme+host proxied requests are forwarded to. It
 	// defaults to defaultUpstreamBase and is overridden by tests to point at an
@@ -74,10 +75,11 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 	addr := net.JoinHostPort("", strconv.Itoa(cfg.Port))
 
 	s := &Server{
-		cfg:   cfg,
-		log:   log,
-		mux:   mux,
-		store: newAppStorage(),
+		cfg:      cfg,
+		log:      log,
+		mux:      mux,
+		store:    newAppStorage(),
+		fixtures: newFixtureStore(),
 		trigger: webhook.NewTrigger(webhook.Config{
 			ClientSecret: cfg.ClientSecret,
 			StoreID:      parseStoreID(cfg.StoreID, log),
@@ -86,6 +88,10 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 		upstreamBase: defaultUpstreamBase,
 		proxyClient:  &http.Client{Timeout: proxyTimeout, Transport: newProxyTransport()},
 	}
+
+	// Seed the configured store so the simulated customer/profile endpoints
+	// answer the happy path with no seeding required by the consumer.
+	seedDefaults(s.fixtures, cfg.StoreID)
 
 	s.routes()
 
@@ -120,6 +126,18 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PUT /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
 	s.mux.HandleFunc("POST /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
 	s.mux.HandleFunc("DELETE /api/v3/{storeId}/storage/{key}", s.handleStorageDelete)
+
+	// Simulated Ecwid REST: store profile and customers, served from in-memory
+	// fixtures (the default — no real store or proxy needed). These specific
+	// patterns are preferred by ServeMux over the proxy/501 catch-all below.
+	s.mux.HandleFunc("GET /api/v3/{storeId}/profile", s.handleProfileGet)
+	s.mux.HandleFunc("GET /api/v3/{storeId}/customers", s.handleCustomersSearch)
+	s.mux.HandleFunc("GET /api/v3/{storeId}/customers/{id}", s.handleCustomerGet)
+	s.mux.HandleFunc("PUT /api/v3/{storeId}/customers/{id}", s.handleCustomerUpdate)
+
+	// Control plane: seed/override the customer and profile fixtures.
+	s.mux.HandleFunc("POST /_mock/fixtures/customers", s.handleFixtureCustomersPut)
+	s.mux.HandleFunc("PUT /_mock/fixtures/profile", s.handleFixtureProfilePut)
 
 	// Simulated Ecwid REST namespace. This catch-all backstops every REST route
 	// the mock does not implement locally: it proxies to a real store when

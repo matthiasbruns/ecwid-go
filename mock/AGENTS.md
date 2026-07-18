@@ -20,7 +20,7 @@ exactly one namespace each.
 | Prefix | Purpose | Owner issue |
 |--------|---------|-------------|
 | `/` | Admin shell — the developer-facing UI that hosts the app iframe | #4 |
-| `/api/v3/{storeId}/...` | Simulated Ecwid REST; proxy or `501` fallback for unimplemented routes | #5, #7 |
+| `/api/v3/{storeId}/...` | Simulated Ecwid REST: app storage, store-profile + customer fixtures; proxy or `501` fallback for unimplemented routes | #5, #7 |
 
 **REST fallback (`internal/server/proxy.go`).** Unimplemented REST routes return an
 informative `501` naming the endpoint and the `--proxy-store`/`--proxy-token`
@@ -33,7 +33,18 @@ which the "CRUCIAL RULE" forbids). `--proxy-readonly` (default **true**) blocks
 proxied mutations with `403`. **`/storage` is always served locally**, even when
 proxying, so dev scratch state never lands in the real store's app storage —
 enforced in the fallback handler and by ServeMux route specificity.
-| `/_mock/...` | The mock's own control API (health, webhook trigger, …) | #6 |
+
+**Fixtures (`internal/server/fixtures.go`).** `GET /profile`, `GET /customers`
+(paged + `?email=` filter), `GET /customers/{id}`, and `PUT /customers/{id}`
+(field-merge, read-after-write) are served from an in-memory `fixtureStore`
+keyed by store ID — the **default**, no proxy needed. Responses use the
+`ecwid/customers` and `ecwid/profile` structs so shapes/field-names match the
+typed client. Each route is gated on its Ecwid scope via `Config.HasScope`
+(missing scope → the real `403` shape; empty `--scopes` grants all). The
+configured store is seeded with a default profile + customers at `New()`;
+`POST/PUT /_mock/fixtures/...` (control plane) lets an out-of-process consumer
+install its own. These routes are **always local, never proxied**.
+| `/_mock/...` | The mock's own control API (health, webhook trigger, fixtures, …) | #6 |
 
 The `/_mock/` prefix is reserved so the mock's control plane can **never collide
 with a real Ecwid REST route** (real routes live under `/api/v3/`). Register
@@ -66,7 +77,9 @@ mock/
         ├── server.go           # New, routes, Run (graceful shutdown)
         ├── middleware.go       # structured slog request logging
         ├── health.go           # GET /_mock/health
-        └── storage.go          # app-storage REST endpoints (the JS SDK's only HTTP calls)
+        ├── storage.go          # app-storage REST endpoints (the JS SDK's only HTTP calls)
+        ├── fixtures.go         # profile + customer fixtures: store, seed data, REST handlers, scope gate
+        └── fixtures_control.go # POST/PUT /_mock/fixtures/... to seed/override fixtures
 ```
 
 ## Webhook trigger (control plane)
@@ -108,6 +121,7 @@ Precedence is **flags > env > defaults**, matching `config/`'s behavior.
 | `--auth-mode` | `ECWID_MOCK_AUTH_MODE` | `default` | `default` (hex fragment) \| `enhanced` (AES query) |
 | `--webhook-url` | `ECWID_MOCK_WEBHOOK_URL` | *(optional)* | Where triggered webhooks POST |
 | `--access-token` | `ECWID_MOCK_ACCESS_TOKEN` | *(generated)* | `access_token` issued in the payload; required as `Bearer` on REST calls |
+| `--scopes` | `ECWID_MOCK_SCOPES` | *(all granted)* | Comma-separated granted scopes; gates the profile/customer fixtures. Empty = all granted; narrow it to test `403` paths |
 | `--port` | `ECWID_MOCK_PORT` | `8080` | Listen port |
 | `--proxy-store` / `--proxy-token` | `ECWID_MOCK_PROXY_*` | *(optional)* | Forward unimplemented REST to a real store (both required together) |
 | `--proxy-readonly` | `ECWID_MOCK_PROXY_READONLY` | `true` | Only proxy `GET`/`HEAD`; mutations → `403`. Off = proxied writes hit the real store |
