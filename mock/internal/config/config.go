@@ -134,6 +134,12 @@ func (c *Config) Validate() error {
 		errs = append(errs, "--app-url is required (env: ECWID_MOCK_APP_URL)")
 	} else if u, err := url.Parse(c.AppURL); err != nil || u.Scheme == "" || u.Host == "" {
 		errs = append(errs, fmt.Sprintf("--app-url %q is not a valid absolute URL", c.AppURL))
+	} else if u.Scheme != "http" && u.Scheme != "https" {
+		// The app is loaded in a browser iframe and validated via the
+		// postMessage event.origin, both of which only make sense over http(s).
+		// Reject any other scheme at startup rather than failing obscurely at
+		// render time.
+		errs = append(errs, fmt.Sprintf("--app-url %q must use http or https, got scheme %q", c.AppURL, u.Scheme))
 	}
 
 	if len(c.ClientSecret) < MinClientSecretLen {

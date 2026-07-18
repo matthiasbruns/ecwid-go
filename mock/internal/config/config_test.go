@@ -179,6 +179,11 @@ func TestValidate(t *testing.T) {
 			wantErr: "not a valid absolute URL",
 		},
 		{
+			name:    "non-http(s) app-url scheme",
+			cfg:     Config{AppURL: "ftp://localhost:3000", ClientSecret: validSecret, AuthMode: AuthModeDefault, Port: 8080},
+			wantErr: "must use http or https",
+		},
+		{
 			name:    "short secret",
 			cfg:     Config{AppURL: "http://localhost:3000", ClientSecret: "tooshort", AuthMode: AuthModeDefault, Port: 8080},
 			wantErr: "at least 16 bytes",

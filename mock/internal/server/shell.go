@@ -44,7 +44,10 @@ var shellFS embed.FS
 var shellTmpl = template.Must(template.ParseFS(shellFS, "templates/shell.html"))
 
 // payloadView is the decoded payload as shown in the UI, with both tokens
-// redacted. The raw tokens never reach the template — only this view does.
+// redacted, so the human-readable table never prints raw token values. (The
+// separate shellView.RawPayload copy affordance does carry the full payload —
+// in default mode that is hex-encoded plaintext including the tokens — because
+// it is the exact bytes injected into the iframe.)
 type payloadView struct {
 	StoreID     int64
 	Lang        string
@@ -200,12 +203,16 @@ func (s *Server) payloadFromQuery(q url.Values) (*appauth.Payload, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid store_id %q: must be an integer", storeIDStr)
 	}
+	// Derive tokens from the canonical parsed ID (not the raw string) so that a
+	// non-canonical input like store_id=042 cannot leave StoreID=42 while the
+	// tokens encode "042".
+	canonicalStoreID := strconv.FormatInt(storeID, 10)
 
 	return &appauth.Payload{
 		StoreID:     storeID,
 		Lang:        firstNonEmpty(q.Get("lang"), defaultLang),
-		AccessToken: mockAccessToken(storeIDStr),
-		PublicToken: mockPublicToken(storeIDStr),
+		AccessToken: mockAccessToken(canonicalStoreID),
+		PublicToken: mockPublicToken(canonicalStoreID),
 		ViewMode:    firstNonEmpty(q.Get("view_mode"), defaultViewMode),
 		AppState:    q.Get("app_state"),
 		// Domain is left empty: forcing the SDK's API host at the app breaks apps

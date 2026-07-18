@@ -150,6 +150,30 @@ func TestShell_QueryOverrides(t *testing.T) {
 	}
 }
 
+func TestShell_NonCanonicalStoreID(t *testing.T) {
+	// store_id=042 parses to 42; the derived tokens must encode the canonical
+	// "42", not the raw "042", so the payload stays internally consistent.
+	rec := getShell(t, defaultShellConfig(), "store_id=042")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	src := extractIframeSrc(t, rec.Body.String())
+	u, err := url.Parse(src)
+	if err != nil {
+		t.Fatalf("parse iframe src: %v", err)
+	}
+	got, err := appauth.DecodeHex(u.Fragment)
+	if err != nil {
+		t.Fatalf("DecodeHex(fragment) error = %v", err)
+	}
+	if got.StoreID != 42 {
+		t.Errorf("StoreID = %d, want 42", got.StoreID)
+	}
+	if got.AccessToken != mockAccessToken("42") {
+		t.Errorf("access_token = %q, want token derived from canonical id 42", got.AccessToken)
+	}
+}
+
 func TestShell_Devpayload(t *testing.T) {
 	fixture := &appauth.Payload{
 		StoreID:     7777,
