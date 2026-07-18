@@ -24,11 +24,19 @@ ecwid-go/
 ├── config/     # Config loading (file + env + flags) — stdlib only
 ├── ecwid/      # API client library — stdlib + config
 ├── cli/        # Cobra CLI — config + ecwid + cobra
+├── mock/       # Local mock of an Ecwid store for app development — config + ecwid + cobra
 ├── e2e/        # E2E tests (future)
 └── go.work     # Go workspace
 ```
 
-Three separate Go modules. Users importing only the client library get zero transitive dependencies beyond `config/`.
+Separate Go modules connected by `go.work`. Users importing only the client library get zero transitive dependencies beyond `config/`.
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| `config` | `config/` | Config loading (file + env + flags) |
+| `ecwid` | `ecwid/` | Stateless API client library, webhooks, iframe auth codec |
+| `cli` | `cli/` | Cobra CLI wrapping the client |
+| `mock` | `mock/` | Local mock of an Ecwid store for embedded-app development — [guide](mock/README.md) |
 
 ## Installation
 
@@ -192,6 +200,24 @@ delivery, so an endpoint that redirects HTTP to HTTPS silently never receives a 
 > stays replayable forever. Dedupe on `EventID` (`Options.Deduper`), bound staleness with
 > `Options.MaxAge`, and re-fetch the entity by `EntityID` instead of trusting `Data`.
 > See the [package docs](https://pkg.go.dev/github.com/matthiasbruns/ecwid-go/ecwid/webhooks).
+
+## Local development against a fake store
+
+Ecwid provides no local tooling — no way to run your embedded app without a real
+store, and no webhook test sender, replay, or delivery log. The `mock/` module
+fills that gap:
+
+```bash
+go run ./mock serve --app-url=http://localhost:3000
+# open http://localhost:8080/ — your app, iframed with a store-context payload
+```
+
+It serves the admin shell that iframes your app, simulates the app-storage REST
+endpoints the JS SDK calls, and lets you trigger any of Ecwid's 42 webhook event
+types — including deliberately-invalid signatures to prove your handler fails
+closed. See **[mock/README.md](mock/README.md)** for the full guide, a worked
+example against `Ecwid/sample-native-app`, and a catalog of
+[Ecwid gotchas](mock/README.md#ecwid-gotchas) that will otherwise cost a day each.
 
 ## API Coverage
 
