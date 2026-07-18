@@ -35,6 +35,7 @@ func init() {
 	f.String("proxy-store", "", "store ID to forward unimplemented REST calls to (env: ECWID_MOCK_PROXY_STORE)")
 	f.String("proxy-token", "", "access token for the proxy store (env: ECWID_MOCK_PROXY_TOKEN)")
 	f.String("access-token", "", "access_token issued in the payload and required as Bearer on REST calls; generated if unset (env: ECWID_MOCK_ACCESS_TOKEN)")
+	f.String("scopes", "", "comma-separated access scopes the token is granted; empty grants all (default). Narrow it to test scope-denied (403) paths, e.g. read_store_profile,read_customers (env: ECWID_MOCK_SCOPES)")
 	f.Bool("proxy-readonly", config.DefaultProxyReadonly, "only proxy GET/HEAD; block proxied mutations (they hit the real store and fire real webhooks) (env: ECWID_MOCK_PROXY_READONLY)")
 
 	rootCmd.AddCommand(serveCmd)

@@ -9,7 +9,9 @@ module fills that gap:
 - **Admin shell** — serves your app in an iframe with a correctly-built auth
   payload, exactly as Ecwid's admin does.
 - **Simulated REST** — the app-storage endpoints the JS SDK calls over HTTP,
-  with an optional proxy to a real store for everything else.
+  plus built-in **store-profile and customer fixtures** so an app can be
+  exercised without a real store, with an optional proxy to a real store for
+  everything else.
 - **Webhook trigger** — compose, sign, and deliver any of Ecwid's 42 event types,
   including deliberately-invalid signatures to prove your handler fails closed.
 
@@ -170,11 +172,79 @@ handler **rejects** them:
 If your endpoint returns success for `invalid` or `missing`, it is not verifying.
 `webhooks.NewHandler` gets this right; a hand-rolled handler often does not.
 
+## Simulated REST fixtures — run without a real store
+
+Beyond app storage, the mock serves a set of read/write REST endpoints from
+in-memory **fixtures**. These are the **default** — no real store and no proxy
+are needed — so a consuming app (and its integration tests) can be driven
+hermetically. Responses match real Ecwid shapes and field names; they are built
+from the [`ecwid/customers`](https://pkg.go.dev/github.com/matthiasbruns/ecwid-go/ecwid/customers)
+and [`ecwid/profile`](https://pkg.go.dev/github.com/matthiasbruns/ecwid-go/ecwid/profile)
+types, so the mock and the typed client agree by construction.
+
+| Method & path | Scope | Behaviour |
+|---------------|-------|-----------|
+| `GET /api/v3/{storeId}/profile` | `read_store_profile` | The store profile. |
+| `GET /api/v3/{storeId}/customers` | `read_customers` | Paged list (`items`/`count`/`total`/`offset`/`limit`); `?offset=`/`?limit=` window it, `?email=` filters to the case-insensitive match (the *find-by-email* path). |
+| `GET /api/v3/{storeId}/customers/{id}` | `read_customers` | A single customer, or `404`. |
+| `PUT /api/v3/{storeId}/customers/{id}` | `update_customers` | Merges the supplied fields (e.g. `acceptMarketing`) into the stored customer and returns `{"updateCount":1}`. The write is reflected in subsequent `GET`s (read-after-write). |
+
+Requests carry the mock's `access_token` as `Bearer` (a wrong/missing token is
+`401`), exactly like the storage routes. **These endpoints are always served
+locally and never proxied**, even with proxying enabled.
+
+**Seeded defaults.** On startup the configured store is seeded with a store
+profile and three customers (`ada@example.com`, `grace@example.com`,
+`alan@example.com`), so the happy path answers out of the box:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v3/1003/profile
+curl -H "Authorization: Bearer $TOKEN" "localhost:8080/api/v3/1003/customers?email=grace@example.com"
+```
+
+### Scope enforcement — testing the unhappy path
+
+By default every scope is granted. Narrow the grant with `--scopes` (comma
+-separated) to make an endpoint return the same `403` a real store returns when
+its token lacks the scope:
+
+```bash
+go run ./mock serve --app-url=http://localhost:3000 \
+  --scopes=read_store_profile,read_customers      # update_customers now → 403
+```
+
+```json
+{"errorMessage":"This method requires the 'update_customers' access scope, which the access token was not granted."}
+```
+
+### Seeding your own fixtures
+
+A control API under `/_mock/fixtures/` lets an out-of-process consumer (e.g. an
+E2E suite that boots the mock as a subprocess) install its own fixtures before
+driving the endpoints above. It needs no bearer token. Add `?storeId=` to target
+a specific store (default: the configured store), which is how a multi-tenant
+consumer seeds several stores against one mock.
+
+```bash
+# Upsert one customer (or POST a JSON array to seed many). A missing id is assigned.
+curl -X POST localhost:8080/_mock/fixtures/customers \
+  -d '{"name":"Katherine Johnson","email":"katherine@example.com","acceptMarketing":false}'
+# -> {"id":1004}
+
+# Replace the store profile.
+curl -X PUT localhost:8080/_mock/fixtures/profile \
+  -d '{"settings":{"storeName":"Acme Test Store"}}'
+```
+
+The seeded customer is then findable through the simulated REST endpoints
+(`GET /customers?email=…`), and its `acceptMarketing` can be flipped through the
+real `PUT /customers/{id}` above.
+
 ## Proxy mode — forward the rest to a real store
 
-The mock implements the app-storage endpoints locally. Every other REST route
-returns an informative `501` unless you enable proxying, which forwards
-unimplemented routes to a **real** store:
+The mock implements the app-storage, profile, and customer endpoints locally.
+Every other REST route returns an informative `501` unless you enable proxying,
+which forwards unimplemented routes to a **real** store:
 
 ```bash
 go run ./mock serve --app-url=http://localhost:3000 \
@@ -201,6 +271,7 @@ Precedence is **flags > env > defaults**.
 | `--store-id` | `ECWID_MOCK_STORE_ID` | `1003` | Store ID placed in the payload |
 | `--auth-mode` | `ECWID_MOCK_AUTH_MODE` | `default` | `default` (hex fragment) \| `enhanced` (AES query) |
 | `--access-token` | `ECWID_MOCK_ACCESS_TOKEN` | *(generated)* | `access_token` required as `Bearer` on simulated REST calls |
+| `--scopes` | `ECWID_MOCK_SCOPES` | *(all granted)* | Comma-separated access scopes the token is granted; narrow it to test scope-denied (`403`) paths |
 | `--webhook-url` | `ECWID_MOCK_WEBHOOK_URL` | *(optional)* | Where triggered webhooks POST |
 | `--port` | `ECWID_MOCK_PORT` | `8080` | Listen port |
 | `--proxy-store` | `ECWID_MOCK_PROXY_STORE` | *(optional)* | Store ID to forward unimplemented REST calls to |
@@ -215,10 +286,12 @@ generated `client_secret` is printed in the banner; a user-supplied one never is
 
 It is a developer tool, not a store emulator. It intentionally omits:
 
-- **No product / order / category / customer fixtures.** The only REST endpoints
-  served locally are app storage. Everything else is `501` (or proxied).
-- **No OAuth scope enforcement.** Any token the mock issued authenticates every
-  storage call; the mock does not check `read_orders`, `read_catalog`, etc.
+- **No product / order / category fixtures.** The REST endpoints served locally
+  are app storage plus the store-profile and customer fixtures above. Everything
+  else is `501` (or proxied).
+- **Scope enforcement is limited to the fixture endpoints.** The profile and
+  customer routes honour their required scopes (see `--scopes`); storage and
+  other routes are not scope-gated.
 - **No webhook retry schedule.** A real failed delivery is retried 27 times over
   24h (see the gotchas). The mock fires once and reports the outcome — re-fire
   manually to test your retry handling.

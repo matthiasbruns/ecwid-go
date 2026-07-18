@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -113,6 +114,23 @@ type Config struct {
 	// supplied. When true, the startup banner prints it so the developer can
 	// configure their app to match.
 	SecretGenerated bool
+
+	// Scopes is the set of Ecwid access scopes the mock's token is granted. It
+	// gates the simulated REST endpoints: a request needing a scope not in this
+	// set gets the same 403 a real store returns, so a consumer can exercise the
+	// unhappy path. An empty set means "all scopes granted" (the default), so the
+	// fixtures answer the happy path with no configuration.
+	Scopes []string
+}
+
+// HasScope reports whether the mock's token is granted scope. An empty Scopes
+// set grants everything — the out-of-the-box default so fixtures just work;
+// configure --scopes to a narrower set to test scope-denied paths.
+func (c *Config) HasScope(scope string) bool {
+	if len(c.Scopes) == 0 {
+		return true
+	}
+	return slices.Contains(c.Scopes, scope)
 }
 
 // RedactedClientSecret returns the client_secret with all but the last 4
@@ -209,6 +227,7 @@ func Load(cmd *cobra.Command) (Config, error) {
 	cfg.ProxyStore = resolveString(cmd, "proxy-store", "ECWID_MOCK_PROXY_STORE", "")
 	cfg.ProxyToken = resolveString(cmd, "proxy-token", "ECWID_MOCK_PROXY_TOKEN", "")
 	cfg.AccessToken = resolveString(cmd, "access-token", "ECWID_MOCK_ACCESS_TOKEN", "")
+	cfg.Scopes = parseScopes(resolveString(cmd, "scopes", "ECWID_MOCK_SCOPES", ""))
 
 	port, err := resolvePort(cmd)
 	if err != nil {
@@ -240,6 +259,22 @@ func Load(cmd *cobra.Command) (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// parseScopes splits a comma-separated scope list into a trimmed, non-empty
+// slice. An empty or all-whitespace input yields nil, which HasScope treats as
+// "all scopes granted".
+func parseScopes(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var scopes []string
+	for s := range strings.SplitSeq(raw, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			scopes = append(scopes, s)
+		}
+	}
+	return scopes
 }
 
 // resolveString applies flags > env > default for a string value.

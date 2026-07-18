@@ -22,8 +22,68 @@ func newCmd() *cobra.Command {
 	f.String("proxy-store", "", "")
 	f.String("proxy-token", "", "")
 	f.String("access-token", "", "")
+	f.String("scopes", "", "")
 	f.Bool("proxy-readonly", DefaultProxyReadonly, "")
 	return cmd
+}
+
+func TestHasScope(t *testing.T) {
+	tests := []struct {
+		name   string
+		scopes []string
+		query  string
+		want   bool
+	}{
+		{name: "empty set grants everything", scopes: nil, query: "read_customers", want: true},
+		{name: "granted scope is allowed", scopes: []string{"read_customers", "update_customers"}, query: "read_customers", want: true},
+		{name: "withheld scope is denied", scopes: []string{"read_store_profile"}, query: "read_customers", want: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := Config{Scopes: tc.scopes}
+			if got := c.HasScope(tc.query); got != tc.want {
+				t.Errorf("HasScope(%q) with %v = %v, want %v", tc.query, tc.scopes, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseScopes(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want []string
+	}{
+		{name: "empty is nil", raw: "", want: nil},
+		{name: "whitespace is nil", raw: "  ", want: nil},
+		{name: "trims and splits", raw: " read_customers , update_customers ", want: []string{"read_customers", "update_customers"}},
+		{name: "drops empty entries", raw: "read_customers,,", want: []string{"read_customers"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseScopes(tc.raw)
+			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Errorf("parseScopes(%q) = %v, want %v", tc.raw, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoad_Scopes(t *testing.T) {
+	cmd := newCmd()
+	if err := cmd.Flags().Set("scopes", "read_store_profile,read_customers"); err != nil {
+		t.Fatalf("set scopes flag: %v", err)
+	}
+	cfg, err := Load(cmd)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.HasScope("read_customers") {
+		t.Error("expected read_customers to be granted")
+	}
+	if cfg.HasScope("update_customers") {
+		t.Error("expected update_customers to be withheld")
+	}
 }
 
 func TestLoad_Defaults(t *testing.T) {
