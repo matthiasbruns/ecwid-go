@@ -151,8 +151,12 @@ jobs:
           git tag "mock/${VERSION}"
           git push origin "mock/${VERSION}"
 
+      # changelog-action needs a non-empty toTag for the range; skip it on the
+      # module's first-ever release (no previous mock tag) and fall back to a
+      # plain "Initial release." body below.
       - name: Generate mock changelog
         id: cl_mock
+        if: steps.prev.outputs.mock != ''
         uses: requarks/changelog-action@v1
         with:
           token: ${{ github.token }}
@@ -169,4 +173,4 @@ jobs:
           body: |
             Requires `ecwid ${{ env.VERSION }}`.
 
-            ${{ steps.cl_mock.outputs.changes }}
+            ${{ steps.cl_mock.outputs.changes || 'Initial release.' }}
