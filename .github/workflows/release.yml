@@ -1,10 +1,14 @@
 name: release
 
-# Releases the two Go modules in this repo in dependency order:
+# Releases the three Go modules in this repo in dependency order:
 #   1. tag + release the `config` module (config/<version>)
 #   2. pin ecwid -> config@<version> and drop the local replace on a release
 #      commit (tagged but NOT pushed to a branch, so main keeps the dev replace)
 #   3. tag + release the `ecwid` SDK (ecwid/<version>)
+#   4. pin mock -> config@<version> AND ecwid@<version> and drop both local
+#      replaces on a release commit (tagged but NOT pushed), then tag + release
+#      the `mock` tool (mock/<version>). ecwid/<version> is pushed in step 3,
+#      so mock's pin resolves it.
 #
 # Changelogs are generated per module from conventional-commit history between
 # the previous and new module tag via requarks/changelog-action.
@@ -39,7 +43,7 @@ jobs:
             echo "::error::'${VERSION}' is not a valid semver tag (expected vX.Y.Z)"
             exit 1
           fi
-          for mod in config ecwid; do
+          for mod in config ecwid mock; do
             if git rev-parse -q --verify "refs/tags/${mod}/${VERSION}" >/dev/null; then
               echo "::error::tag ${mod}/${VERSION} already exists"
               exit 1
@@ -58,6 +62,7 @@ jobs:
         run: |
           echo "config=$(git tag -l 'config/v*' --sort=-version:refname | head -n1)" >> "$GITHUB_OUTPUT"
           echo "ecwid=$(git tag -l 'ecwid/v*' --sort=-version:refname | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "mock=$(git tag -l 'mock/v*' --sort=-version:refname | head -n1)" >> "$GITHUB_OUTPUT"
 
       - name: Tag config module
         run: |
@@ -120,3 +125,48 @@ jobs:
             Requires `config ${{ env.VERSION }}`.
 
             ${{ steps.cl_ecwid.outputs.changes }}
+
+      - name: Pin config + ecwid dependencies and tag mock tool
+        env:
+          GOWORK: "off"
+          GOFLAGS: "-mod=mod"
+          GOPROXY: direct
+          GOSUMDB: "off"
+        run: |
+          cd mock
+          # mock depends on both config and ecwid, so drop both dev replaces and
+          # pin both to VERSION. ecwid/${VERSION} was tagged and pushed above, so
+          # `go mod tidy` (GOPROXY=direct) can resolve it from git.
+          go mod edit -dropreplace=github.com/matthiasbruns/ecwid-go/config
+          go mod edit -dropreplace=github.com/matthiasbruns/ecwid-go/ecwid
+          go mod edit -require="github.com/matthiasbruns/ecwid-go/config@${VERSION}"
+          go mod edit -require="github.com/matthiasbruns/ecwid-go/ecwid@${VERSION}"
+          go mod tidy
+          go build ./...
+          cd ..
+          # Release commit lives only under the mock/<version> tag; main keeps
+          # its local replaces for workspace development.
+          git add mock/go.mod mock/go.sum
+          git commit -m "chore(release): mock ${VERSION} (pin config + ecwid ${VERSION})"
+          git tag "mock/${VERSION}"
+          git push origin "mock/${VERSION}"
+
+      - name: Generate mock changelog
+        id: cl_mock
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: mock/${{ env.VERSION }}
+          toTag: ${{ steps.prev.outputs.mock }}
+          writeToFile: false
+          excludeTypes: build,ci,chore,docs,other,style
+
+      - name: Release mock module
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mock/${{ env.VERSION }}
+          name: mock ${{ env.VERSION }}
+          body: |
+            Requires `ecwid ${{ env.VERSION }}`.
+
+            ${{ steps.cl_mock.outputs.changes }}
