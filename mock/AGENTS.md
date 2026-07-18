@@ -21,6 +21,18 @@ exactly one namespace each.
 |--------|---------|-------------|
 | `/` | Admin shell — the developer-facing UI that hosts the app iframe | #4 |
 | `/api/v3/{storeId}/...` | Simulated Ecwid REST; proxy or `501` fallback for unimplemented routes | #5, #7 |
+
+**REST fallback (`internal/server/proxy.go`).** Unimplemented REST routes return an
+informative `501` naming the endpoint and the `--proxy-store`/`--proxy-token`
+remedy. With proxying configured they forward to
+`https://app.ecwid.com/api/v3/{proxyStore}/…`, rewriting the store ID and
+swapping the `Authorization` bearer for the proxy token. Proxying uses a plain
+`http.Client` (the `ecwid/internal/api` transport is JSON-oriented and its retry
+transport is unexported — reusing it would widen that module's exported surface,
+which the "CRUCIAL RULE" forbids). `--proxy-readonly` (default **true**) blocks
+proxied mutations with `403`. **`/storage` is always served locally**, even when
+proxying, so dev scratch state never lands in the real store's app storage —
+enforced in the fallback handler and by ServeMux route specificity.
 | `/_mock/...` | The mock's own control API (health, webhook trigger, …) | #6 |
 
 The `/_mock/` prefix is reserved so the mock's control plane can **never collide
@@ -97,7 +109,8 @@ Precedence is **flags > env > defaults**, matching `config/`'s behavior.
 | `--webhook-url` | `ECWID_MOCK_WEBHOOK_URL` | *(optional)* | Where triggered webhooks POST |
 | `--access-token` | `ECWID_MOCK_ACCESS_TOKEN` | *(generated)* | `access_token` issued in the payload; required as `Bearer` on REST calls |
 | `--port` | `ECWID_MOCK_PORT` | `8080` | Listen port |
-| `--proxy-store` / `--proxy-token` | `ECWID_MOCK_PROXY_*` | *(optional)* | Forward unimplemented REST to a real store |
+| `--proxy-store` / `--proxy-token` | `ECWID_MOCK_PROXY_*` | *(optional)* | Forward unimplemented REST to a real store (both required together) |
+| `--proxy-readonly` | `ECWID_MOCK_PROXY_READONLY` | `true` | Only proxy `GET`/`HEAD`; mutations → `403`. Off = proxied writes hit the real store |
 
 `--client-secret` **must be ≥16 bytes** — `appauth.Encrypt` derives an AES-128
 key from `client_secret[:16]`. It is validated at startup (referencing

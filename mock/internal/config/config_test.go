@@ -22,6 +22,7 @@ func newCmd() *cobra.Command {
 	f.String("proxy-store", "", "")
 	f.String("proxy-token", "", "")
 	f.String("access-token", "", "")
+	f.Bool("proxy-readonly", DefaultProxyReadonly, "")
 	return cmd
 }
 
@@ -216,6 +217,105 @@ func TestValidate(t *testing.T) {
 				t.Errorf("Validate() = %v, want error containing %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestLoad_ProxyReadonlyDefaultsTrue(t *testing.T) {
+	cmd := newCmd()
+	if err := cmd.Flags().Set("app-url", "http://localhost:3000"); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(cmd)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.ProxyReadonly {
+		t.Error("ProxyReadonly = false, want true by default (writes must be blocked unless opted in)")
+	}
+}
+
+func TestLoad_ProxyReadonlyResolution(t *testing.T) {
+	t.Run("flag false wins over env true", func(t *testing.T) {
+		t.Setenv("ECWID_MOCK_PROXY_READONLY", "true")
+		cmd := newCmd()
+		if err := cmd.Flags().Set("app-url", "http://localhost:3000"); err != nil {
+			t.Fatal(err)
+		}
+		if err := cmd.Flags().Set("proxy-readonly", "false"); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(cmd)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.ProxyReadonly {
+			t.Error("ProxyReadonly = true, want flag false to win over env")
+		}
+	})
+
+	t.Run("env false overrides default", func(t *testing.T) {
+		t.Setenv("ECWID_MOCK_PROXY_READONLY", "false")
+		cfg, err := Load(newCmd())
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.ProxyReadonly {
+			t.Error("ProxyReadonly = true, want env false to override default")
+		}
+	})
+
+	t.Run("invalid env is an error", func(t *testing.T) {
+		t.Setenv("ECWID_MOCK_PROXY_READONLY", "maybe")
+		if _, err := Load(newCmd()); err == nil {
+			t.Fatal("Load: want error for non-boolean ECWID_MOCK_PROXY_READONLY, got nil")
+		}
+	})
+}
+
+func TestValidate_ProxyStoreAndTokenPairing(t *testing.T) {
+	validSecret := "0123456789abcdef"
+	base := func() Config {
+		return Config{AppURL: "http://localhost:3000", ClientSecret: validSecret, AuthMode: AuthModeDefault, Port: 8080}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{name: "neither set", mutate: func(*Config) {}},
+		{name: "both set", mutate: func(c *Config) { c.ProxyStore = "42"; c.ProxyToken = "t" }},
+		{name: "store without token", mutate: func(c *Config) { c.ProxyStore = "42" }, wantErr: "must be set together"},
+		{name: "token without store", mutate: func(c *Config) { c.ProxyToken = "t" }, wantErr: "must be set together"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := base()
+			tt.mutate(&cfg)
+			err := cfg.Validate()
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("Validate() = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Validate() = %v, want error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestProxyEnabled(t *testing.T) {
+	if (&Config{}).ProxyEnabled() {
+		t.Error("ProxyEnabled() = true for empty config, want false")
+	}
+	if (&Config{ProxyStore: "42"}).ProxyEnabled() {
+		t.Error("ProxyEnabled() = true with store but no token, want false")
+	}
+	if !(&Config{ProxyStore: "42", ProxyToken: "t"}).ProxyEnabled() {
+		t.Error("ProxyEnabled() = false with both set, want true")
 	}
 }
 
