@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -215,9 +216,11 @@ func TestFire_Classification(t *testing.T) {
 // it — Ecwid does not — so the delivery is reported as the 3xx, not the 200 it
 // would redirect to. This is the trap the tool exists to surface.
 func TestFire_DoesNotFollowRedirects(t *testing.T) {
-	var followed bool
+	// atomic: the target handler runs on the server goroutine, the assertion on
+	// the test goroutine.
+	var followed atomic.Bool
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		followed = true
+		followed.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer target.Close()
@@ -232,7 +235,7 @@ func TestFire_DoesNotFollowRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if followed {
+	if followed.Load() {
 		t.Error("mock followed the redirect; Ecwid does not")
 	}
 	if res.StatusCode != http.StatusMovedPermanently {
