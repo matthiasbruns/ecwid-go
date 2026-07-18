@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -343,9 +345,8 @@ func (s *Server) handleCustomerUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxCustomerBodyBytes))
-	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "failed to read request body")
+	body, ok := readFixtureBody(w, r, maxCustomerBodyBytes)
+	if !ok {
 		return
 	}
 	var patch map[string]json.RawMessage
@@ -354,7 +355,7 @@ func (s *Server) handleCustomerUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, ok, err := s.fixtures.patchCustomer(r.PathValue("storeId"), id, patch)
+	_, ok, err = s.fixtures.patchCustomer(r.PathValue("storeId"), id, patch)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid customer update: "+err.Error())
 		return
@@ -364,6 +365,31 @@ func (s *Server) handleCustomerUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, customers.UpdateResult{UpdateCount: 1})
+}
+
+// readFixtureBody reads a fixture-mutation request body under a size limit. It
+// reads one byte past the limit (like the storage routes) so an over-limit body
+// is reported as 413 rather than silently truncated into a different, possibly
+// valid payload; and it rejects a bare JSON null (400), which the decoders would
+// otherwise accept as an empty map/slice/struct and treat as success. It returns
+// the body and whether the caller may proceed; on false it has already written
+// the error response.
+func readFixtureBody(w http.ResponseWriter, r *http.Request, limit int) ([]byte, bool) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, int64(limit)+1))
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "failed to read request body")
+		return nil, false
+	}
+	if len(body) > limit {
+		writeJSONError(w, http.StatusRequestEntityTooLarge,
+			fmt.Sprintf("request body exceeds the %d-byte limit", limit))
+		return nil, false
+	}
+	if bytes.Equal(bytes.TrimSpace(body), []byte("null")) {
+		writeJSONError(w, http.StatusBadRequest, "request body must not be null")
+		return nil, false
+	}
+	return body, true
 }
 
 // parseOffset parses a non-negative offset, defaulting to 0 for an absent or

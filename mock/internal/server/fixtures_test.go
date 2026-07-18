@@ -318,6 +318,7 @@ func TestFixtures_CustomerUpdate_Errors(t *testing.T) {
 		{name: "missing customer is 404", id: "999999", body: `{"acceptMarketing":true}`, wantStatus: http.StatusNotFound},
 		{name: "non-numeric id is 404", id: "xyz", body: `{"acceptMarketing":true}`, wantStatus: http.StatusNotFound},
 		{name: "malformed body is 400", id: "1001", body: `not json`, wantStatus: http.StatusBadRequest},
+		{name: "null body is 400", id: "1001", body: `null`, wantStatus: http.StatusBadRequest},
 		{name: "scope denied is 403", id: "1001", scopes: []string{scopeReadCustomers}, body: `{"acceptMarketing":true}`, wantStatus: http.StatusForbidden},
 	}
 
@@ -439,6 +440,37 @@ func TestFixtures_ControlSeed(t *testing.T) {
 			t.Errorf("malformed seed status = %d, want 400", rec.Code)
 		}
 	})
+
+	// A bare JSON null must be rejected on both control endpoints rather than
+	// accepted as an empty slice/struct (which would silently seed nothing or
+	// wipe the profile).
+	t.Run("null seed bodies are 400", func(t *testing.T) {
+		srv := newFixtureServer(nil)
+		for _, tc := range []struct {
+			method, path string
+		}{
+			{http.MethodPost, "/_mock/fixtures/customers"},
+			{http.MethodPut, "/_mock/fixtures/profile"},
+		} {
+			rec := do(srv, httptest.NewRequest(tc.method, tc.path, strings.NewReader("null")))
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("%s %s null body status = %d, want 400", tc.method, tc.path, rec.Code)
+			}
+		}
+	})
+}
+
+// TestFixtures_CustomerUpdate_OverLimit asserts an over-limit update body is
+// rejected with 413 rather than silently truncated (which could turn an invalid
+// body into a smaller valid one).
+func TestFixtures_CustomerUpdate_OverLimit(t *testing.T) {
+	srv := newFixtureServer(nil)
+	// A valid-looking JSON object padded past the byte limit with whitespace.
+	oversized := `{"acceptMarketing":true}` + strings.Repeat(" ", maxCustomerBodyBytes)
+	rec := do(srv, fixtureReq(http.MethodPut, restPath("customers/1001"), strings.NewReader(oversized)))
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("over-limit update status = %d, want 413", rec.Code)
+	}
 }
 
 // ── Fixtures are never proxied ───────────────────────────────────────────

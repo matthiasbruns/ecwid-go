@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/matthiasbruns/ecwid-go/ecwid/customers"
@@ -38,14 +37,14 @@ func (s *Server) fixtureStoreID(r *http.Request) string {
 func (s *Server) handleFixtureCustomersPut(w http.ResponseWriter, r *http.Request) {
 	storeID := s.fixtureStoreID(r)
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxFixtureBodyBytes))
-	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "failed to read request body")
+	body, ok := readFixtureBody(w, r, maxFixtureBodyBytes)
+	if !ok {
 		return
 	}
 
 	// Try an array first; a single object fails that and falls through to the
-	// object decode below.
+	// object decode below. A null body is already rejected by readFixtureBody, so
+	// a successful array decode here yields a non-nil slice.
 	var many []customers.Customer
 	if err := json.Unmarshal(body, &many); err == nil {
 		ids := make([]int64, 0, len(many))
@@ -70,9 +69,8 @@ func (s *Server) handleFixtureCustomersPut(w http.ResponseWriter, r *http.Reques
 func (s *Server) handleFixtureProfilePut(w http.ResponseWriter, r *http.Request) {
 	storeID := s.fixtureStoreID(r)
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxFixtureBodyBytes))
-	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "failed to read request body")
+	body, ok := readFixtureBody(w, r, maxFixtureBodyBytes)
+	if !ok {
 		return
 	}
 	var p profile.Profile
