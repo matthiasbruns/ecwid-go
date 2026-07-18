@@ -16,26 +16,32 @@ import (
 // unauthenticated POST cannot exhaust memory.
 const maxBodyBytes = 1 << 20 // 1 MiB
 
+// successCodeSet is the canonical set of status codes Ecwid counts as a
+// successful delivery. It is never mutated, so [isSuccessCode] can read it
+// directly and [SuccessCodes] hands out a copy — neither allocates on the check
+// path nor lets a caller mutate the shared source.
+var successCodeSet = [...]int{
+	http.StatusOK,        // 200
+	http.StatusCreated,   // 201
+	http.StatusAccepted,  // 202
+	http.StatusNoContent, // 204
+	209,                  // no net/http constant; not a registered IANA code
+}
+
 // SuccessCodes lists the HTTP status codes Ecwid counts as a successful webhook
 // delivery: 200, 201, 202, 204 and 209. Every other status — including 203, 208
 // and every 3xx — is a failed delivery that Ecwid retries.
 //
-// It returns a fresh slice per call, so there is no package-level state to
-// mutate, and exists so local tooling (the mock server's delivery classifier)
-// applies exactly the set this package enforces rather than a hand-copied one.
+// It returns a fresh slice per call, so a caller cannot mutate the shared set,
+// and exists so local tooling (the mock server's delivery classifier) applies
+// exactly the set this package enforces rather than a hand-copied one.
 func SuccessCodes() []int {
-	return []int{
-		http.StatusOK,        // 200
-		http.StatusCreated,   // 201
-		http.StatusAccepted,  // 202
-		http.StatusNoContent, // 204
-		209,                  // no net/http constant; not a registered IANA code
-	}
+	return slices.Clone(successCodeSet[:])
 }
 
 // isSuccessCode reports whether Ecwid accepts status as a successful delivery.
 func isSuccessCode(status int) bool {
-	return slices.Contains(SuccessCodes(), status)
+	return slices.Contains(successCodeSet[:], status)
 }
 
 // Deduper records which events have been processed, so a replayed or retried
