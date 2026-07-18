@@ -84,7 +84,7 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 			URL:          cfg.WebhookURL,
 		}),
 		upstreamBase: defaultUpstreamBase,
-		proxyClient:  &http.Client{Timeout: proxyTimeout},
+		proxyClient:  &http.Client{Timeout: proxyTimeout, Transport: newProxyTransport()},
 	}
 
 	s.routes()

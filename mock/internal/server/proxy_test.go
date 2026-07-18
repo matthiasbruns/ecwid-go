@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -228,6 +229,73 @@ func TestFallback_ProxyTokenNeverLogged(t *testing.T) {
 
 	if strings.Contains(logBuf.String(), token) {
 		t.Errorf("proxy token leaked into logs:\n%s", logBuf.String())
+	}
+}
+
+func TestFallback_Proxy_DropsConnectionNamedHopByHopHeaders(t *testing.T) {
+	var gotUpstream http.Header
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUpstream = r.Header.Clone()
+		// Name a hop-by-hop header on the response side too.
+		w.Header().Set("Connection", "X-Resp-Hop")
+		w.Header().Set("X-Resp-Hop", "secret")
+		w.Header().Set("X-Resp-Keep", "kept")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{StoreID: "1003", ProxyStore: "42", ProxyToken: "real-token", ProxyReadonly: true}
+	srv := proxyServer(cfg, upstream.URL, io.Discard)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v3/1003/products", http.NoBody)
+	req.Header.Set("Connection", "X-Req-Hop")
+	req.Header.Set("X-Req-Hop", "should-be-dropped")
+	req.Header.Set("X-Req-Keep", "kept")
+	rec := serve(srv, req)
+
+	if v := gotUpstream.Get("X-Req-Hop"); v != "" {
+		t.Errorf("Connection-named request header forwarded upstream: X-Req-Hop = %q, want dropped", v)
+	}
+	if v := gotUpstream.Get("X-Req-Keep"); v != "kept" {
+		t.Errorf("ordinary request header X-Req-Keep = %q, want forwarded", v)
+	}
+	if v := rec.Header().Get("X-Resp-Hop"); v != "" {
+		t.Errorf("Connection-named response header returned to client: X-Resp-Hop = %q, want dropped", v)
+	}
+	if v := rec.Header().Get("X-Resp-Keep"); v != "kept" {
+		t.Errorf("ordinary response header X-Resp-Keep = %q, want forwarded", v)
+	}
+}
+
+func TestFallback_Proxy_PassesGzipBodyThroughUndecoded(t *testing.T) {
+	var raw bytes.Buffer
+	gz := gzip.NewWriter(&raw)
+	if _, err := gz.Write([]byte(`{"items":[1,2,3]}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	gzBytes := raw.Bytes()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(gzBytes)
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{StoreID: "1003", ProxyStore: "42", ProxyToken: "real-token", ProxyReadonly: true}
+	srv := proxyServer(cfg, upstream.URL, io.Discard)
+
+	rec := serve(srv, httptest.NewRequest(http.MethodGet, "/api/v3/1003/products", http.NoBody))
+
+	if ce := rec.Header().Get("Content-Encoding"); ce != "gzip" {
+		t.Errorf("Content-Encoding = %q, want gzip preserved (no transparent decompression)", ce)
+	}
+	if !bytes.Equal(rec.Body.Bytes(), gzBytes) {
+		t.Errorf("body was not passed through as raw gzip bytes; got %d bytes, want %d", rec.Body.Len(), len(gzBytes))
 	}
 }
 

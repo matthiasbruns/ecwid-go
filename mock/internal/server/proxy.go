@@ -36,6 +36,17 @@ var hopByHopHeaders = map[string]struct{}{
 	"Upgrade":             {},
 }
 
+// newProxyTransport clones the default transport and disables automatic
+// compression. Otherwise net/http would add Accept-Encoding: gzip and
+// transparently decode gzip responses, rewriting Content-Encoding/Content-Length
+// and breaking the intended byte-for-byte passthrough; with it off, whatever the
+// upstream returns (gzipped or not) is forwarded unchanged.
+func newProxyTransport() http.RoundTripper {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DisableCompression = true
+	return t
+}
+
 // handleRESTFallback backstops every /api/v3/{storeId}/... route the mock does
 // not simulate locally. With proxying configured it forwards to the real store
 // (subject to the read-only gate); otherwise it returns an informative 501.
@@ -151,28 +162,45 @@ func isReadMethod(m string) bool {
 	return m == http.MethodGet || m == http.MethodHead
 }
 
-// copyProxyRequestHeaders copies client request headers to the upstream request,
-// dropping hop-by-hop headers and Authorization (which the caller resets to the
-// proxy token) so the mock's fake token is never forwarded.
-func copyProxyRequestHeaders(dst, src http.Header) {
-	for k, vv := range src {
-		if _, hop := hopByHopHeaders[http.CanonicalHeaderKey(k)]; hop {
-			continue
-		}
-		if http.CanonicalHeaderKey(k) == "Authorization" {
-			continue
-		}
-		for _, v := range vv {
-			dst.Add(k, v)
+// hopByHopSet returns the headers that must not be forwarded across a hop: the
+// fixed connection-scoped set plus any headers named in src's own Connection
+// header (RFC 7230 §6.1). Names are canonicalized for lookup.
+func hopByHopSet(src http.Header) map[string]struct{} {
+	drop := make(map[string]struct{}, len(hopByHopHeaders))
+	for k := range hopByHopHeaders {
+		drop[k] = struct{}{}
+	}
+	for _, v := range src.Values("Connection") {
+		for tok := range strings.SplitSeq(v, ",") {
+			if tok = strings.TrimSpace(tok); tok != "" {
+				drop[http.CanonicalHeaderKey(tok)] = struct{}{}
+			}
 		}
 	}
+	return drop
+}
+
+// copyProxyRequestHeaders copies client request headers to the upstream request,
+// dropping hop-by-hop headers (including those named by Connection) and
+// Authorization (which the caller resets to the proxy token) so the mock's fake
+// token is never forwarded.
+func copyProxyRequestHeaders(dst, src http.Header) {
+	drop := hopByHopSet(src)
+	drop["Authorization"] = struct{}{}
+	copyHeaders(dst, src, drop)
 }
 
 // copyProxyResponseHeaders copies upstream response headers back to the client,
-// dropping hop-by-hop headers.
+// dropping hop-by-hop headers (including those named by Connection).
 func copyProxyResponseHeaders(dst, src http.Header) {
+	copyHeaders(dst, src, hopByHopSet(src))
+}
+
+// copyHeaders copies every header from src to dst except those whose
+// canonicalized name is in drop.
+func copyHeaders(dst, src http.Header, drop map[string]struct{}) {
 	for k, vv := range src {
-		if _, hop := hopByHopHeaders[http.CanonicalHeaderKey(k)]; hop {
+		if _, skip := drop[http.CanonicalHeaderKey(k)]; skip {
 			continue
 		}
 		for _, v := range vv {
