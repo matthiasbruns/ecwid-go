@@ -211,6 +211,38 @@ func TestFire_Classification(t *testing.T) {
 	}
 }
 
+// A real redirecting endpoint sends a Location header. The mock must NOT follow
+// it — Ecwid does not — so the delivery is reported as the 3xx, not the 200 it
+// would redirect to. This is the trap the tool exists to surface.
+func TestFire_DoesNotFollowRedirects(t *testing.T) {
+	var followed bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		followed = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Redirect(w, &http.Request{}, target.URL, http.StatusMovedPermanently)
+	}))
+	defer redirector.Close()
+
+	tr := newTestTrigger(t, redirector.URL)
+	res, err := tr.Fire(context.Background(), Request{EventType: webhooks.EventOrderCreated})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if followed {
+		t.Error("mock followed the redirect; Ecwid does not")
+	}
+	if res.StatusCode != http.StatusMovedPermanently {
+		t.Errorf("statusCode = %d, want 301 (the redirect itself)", res.StatusCode)
+	}
+	if res.Delivered {
+		t.Errorf("301 reported as delivered: %s", res.Reason)
+	}
+}
+
 func TestFire_MissingSignatureHeaderAbsent(t *testing.T) {
 	var hadHeader bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

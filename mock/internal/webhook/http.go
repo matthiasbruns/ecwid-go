@@ -62,6 +62,13 @@ func (h *Handler) handleTrigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A bad signature mode is a client error; reject it here rather than letting
+	// it surface from Fire as a generic error.
+	if body.Signature != "" && !body.Signature.valid() {
+		writeError(w, http.StatusBadRequest, "signature must be one of: valid, invalid, missing")
+		return
+	}
+
 	res, err := h.trigger.Fire(r.Context(), Request{
 		EventType: webhooks.EventType(body.EventType),
 		EntityID:  entityID,
@@ -76,7 +83,9 @@ func (h *Handler) handleTrigger(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	case err != nil:
-		writeError(w, http.StatusBadRequest, err.Error())
+		// Remaining errors (UUID generation, marshaling, request construction from
+		// a bad configured URL) are server-side, not the caller's fault.
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
