@@ -54,6 +54,10 @@ const (
 	// client_secret. Hex-encoding doubles the length, comfortably clearing
 	// MinClientSecretLen.
 	generatedSecretBytes = 16
+
+	// generatedTokenBytes is the number of random bytes used when generating an
+	// access_token. Hex-encoding doubles the resulting string length.
+	generatedTokenBytes = 16
 )
 
 // Config is the mock server's runtime configuration.
@@ -87,6 +91,12 @@ type Config struct {
 
 	// ProxyToken is the access token for the proxy store. Optional.
 	ProxyToken string
+
+	// AccessToken is the access_token the mock requires as the Bearer credential
+	// on simulated REST calls. Generated if not supplied. The admin shell (#4)
+	// will inject this same value into the iframe payload so the SDK sends it
+	// back automatically; until then it is supplied to the app out of band.
+	AccessToken string
 
 	// SecretGenerated reports whether ClientSecret was generated rather than
 	// supplied. When true, the startup banner prints it so the developer can
@@ -168,6 +178,7 @@ func Load(cmd *cobra.Command) (Config, error) {
 	cfg.WebhookURL = resolveString(cmd, "webhook-url", "ECWID_MOCK_WEBHOOK_URL", "")
 	cfg.ProxyStore = resolveString(cmd, "proxy-store", "ECWID_MOCK_PROXY_STORE", "")
 	cfg.ProxyToken = resolveString(cmd, "proxy-token", "ECWID_MOCK_PROXY_TOKEN", "")
+	cfg.AccessToken = resolveString(cmd, "access-token", "ECWID_MOCK_ACCESS_TOKEN", "")
 
 	port, err := resolvePort(cmd)
 	if err != nil {
@@ -182,6 +193,14 @@ func Load(cmd *cobra.Command) (Config, error) {
 		}
 		cfg.ClientSecret = secret
 		cfg.SecretGenerated = true
+	}
+
+	if cfg.AccessToken == "" {
+		token, err := generateAccessToken()
+		if err != nil {
+			return Config{}, fmt.Errorf("generate access_token: %w", err)
+		}
+		cfg.AccessToken = token
 	}
 
 	return cfg, nil
@@ -224,7 +243,17 @@ func resolvePort(cmd *cobra.Command) (int, error) {
 // generateSecret returns a hex-encoded random client_secret of at least
 // MinClientSecretLen bytes.
 func generateSecret() (string, error) {
-	buf := make([]byte, generatedSecretBytes)
+	return randomHex(generatedSecretBytes)
+}
+
+// generateAccessToken returns a hex-encoded random access_token.
+func generateAccessToken() (string, error) {
+	return randomHex(generatedTokenBytes)
+}
+
+// randomHex returns the hex encoding of n cryptographically random bytes.
+func randomHex(n int) (string, error) {
+	buf := make([]byte, n)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}

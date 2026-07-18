@@ -46,7 +46,8 @@ mock/
     └── server/                 # ServeMux, request logging, graceful lifecycle
         ├── server.go           # New, routes, Run (graceful shutdown)
         ├── middleware.go       # structured slog request logging
-        └── health.go           # GET /_mock/health
+        ├── health.go           # GET /_mock/health
+        └── storage.go          # app-storage REST endpoints (the JS SDK's only HTTP calls)
 ```
 
 Everything lives under `internal/` — this module ships a binary, not a library,
@@ -69,6 +70,7 @@ Precedence is **flags > env > defaults**, matching `config/`'s behavior.
 | `--store-id` | `ECWID_MOCK_STORE_ID` | `1003` | Store ID in the payload |
 | `--auth-mode` | `ECWID_MOCK_AUTH_MODE` | `default` | `default` (hex fragment) \| `enhanced` (AES query) |
 | `--webhook-url` | `ECWID_MOCK_WEBHOOK_URL` | *(optional)* | Where triggered webhooks POST |
+| `--access-token` | `ECWID_MOCK_ACCESS_TOKEN` | *(generated)* | `access_token` issued in the payload; required as `Bearer` on REST calls |
 | `--port` | `ECWID_MOCK_PORT` | `8080` | Listen port |
 | `--proxy-store` / `--proxy-token` | `ECWID_MOCK_PROXY_*` | *(optional)* | Forward unimplemented REST to a real store |
 

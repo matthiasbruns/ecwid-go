@@ -45,10 +45,11 @@ const shutdownTimeout = 10 * time.Second
 
 // Server wraps the HTTP server and its configuration.
 type Server struct {
-	cfg  config.Config
-	log  *slog.Logger
-	mux  *http.ServeMux
-	http *http.Server
+	cfg   config.Config
+	log   *slog.Logger
+	mux   *http.ServeMux
+	http  *http.Server
+	store *appStorage
 }
 
 // New builds a Server with all routes registered. The provided logger is used
@@ -62,9 +63,10 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 	addr := net.JoinHostPort("", strconv.Itoa(cfg.Port))
 
 	s := &Server{
-		cfg: cfg,
-		log: log,
-		mux: mux,
+		cfg:   cfg,
+		log:   log,
+		mux:   mux,
+		store: newAppStorage(),
 	}
 
 	s.routes()
@@ -88,6 +90,14 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 // control endpoints are added by later issues.
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /_mock/health", handleHealth)
+
+	// Simulated Ecwid REST: the app-storage endpoints the JS SDK actually calls
+	// over HTTP (getAppStorage/setAppStorage and the public-config variants).
+	s.mux.HandleFunc("GET /api/v3/{storeId}/storage", s.handleStorageList)
+	s.mux.HandleFunc("GET /api/v3/{storeId}/storage/{key}", s.handleStorageGet)
+	s.mux.HandleFunc("PUT /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
+	s.mux.HandleFunc("POST /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
+	s.mux.HandleFunc("DELETE /api/v3/{storeId}/storage/{key}", s.handleStorageDelete)
 }
 
 // Run starts the server and blocks until ctx is canceled (e.g. on SIGINT or
