@@ -97,10 +97,13 @@ func waitHealthy(t *testing.T, baseURL string) {
 	t.Helper()
 	const timeout = 5 * time.Second
 	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(2 * time.Millisecond)
+	// Bound each probe so a stalled health handler cannot block past the overall
+	// deadline (a plain http.Get has no timeout and could hang CI).
+	client := &http.Client{Timeout: 250 * time.Millisecond}
+	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		resp, err := http.Get(baseURL + "/_mock/health")
+		resp, err := client.Get(baseURL + "/_mock/health")
 		if err == nil {
 			healthy := resp.StatusCode == http.StatusOK
 			_ = resp.Body.Close()
@@ -146,7 +149,10 @@ func assertFakeAppReachable(t *testing.T, iframeSrc string) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("iframe app URL status = %d, want 200", resp.StatusCode)
 	}
-	b, _ := io.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read iframe app body: %v", err)
+	}
 	if !strings.Contains(string(b), `id="fake-app"`) {
 		t.Error("iframe app URL did not serve the fake app page")
 	}
@@ -203,6 +209,7 @@ func getStorageEntry(t *testing.T, baseURL, key, token string) storageEntry {
 // capturedWebhook records one delivery a receiver observed.
 type capturedWebhook struct {
 	body      []byte
+	readErr   error
 	signature string
 	hasSig    bool
 }
@@ -226,10 +233,11 @@ func newWebhookReceiver(t *testing.T, status int) *webhookReceiver {
 }
 
 func (rc *webhookReceiver) handle(w http.ResponseWriter, r *http.Request) {
-	body, _ := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	rc.mu.Lock()
 	rc.captured = append(rc.captured, capturedWebhook{
 		body:      body,
+		readErr:   err,
 		signature: r.Header.Get(webhooks.SignatureHeader),
 		hasSig:    len(r.Header.Values(webhooks.SignatureHeader)) > 0,
 	})
@@ -247,7 +255,11 @@ func (rc *webhookReceiver) last(t *testing.T) capturedWebhook {
 	if len(rc.captured) == 0 {
 		t.Fatal("webhook receiver captured no request")
 	}
-	return rc.captured[len(rc.captured)-1]
+	got := rc.captured[len(rc.captured)-1]
+	if got.readErr != nil {
+		t.Fatalf("webhook receiver failed to read the delivery body: %v", got.readErr)
+	}
+	return got
 }
 
 // triggerWebhook POSTs to the control API and returns the delivery Result and
@@ -283,14 +295,30 @@ func rawFields(t *testing.T, body []byte) map[string]json.RawMessage {
 	return m
 }
 
-// wireEntityIDType reports how entityId was serialized: a quoted JSON string or
-// a bare JSON number, matching EventSpec.EntityIDType's vocabulary.
+// entityIDTypeInvalid is what wireEntityIDType reports for an entityId that is
+// absent or neither a quoted string nor a valid JSON number. It never matches a
+// spec's EntityIDType (which is only "string" or "number"), so an omitted or
+// malformed entityId always fails an assertion rather than being silently taken
+// for a number.
+const entityIDTypeInvalid = "invalid"
+
+// wireEntityIDType reports how entityId was serialized: a quoted JSON string, a
+// bare JSON number (matching EventSpec.EntityIDType's vocabulary), or
+// entityIDTypeInvalid when it is absent or malformed.
 func wireEntityIDType(raw json.RawMessage) string {
 	trimmed := bytes.TrimSpace(raw)
-	if len(trimmed) > 0 && trimmed[0] == '"' {
+	switch {
+	case len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")):
+		return entityIDTypeInvalid
+	case trimmed[0] == '"':
 		return webhook.EntityIDString
+	default:
+		var n json.Number
+		if err := json.Unmarshal(trimmed, &n); err != nil {
+			return entityIDTypeInvalid
+		}
+		return webhook.EntityIDNumber
 	}
-	return webhook.EntityIDNumber
 }
 
 // verifyReceived asserts a captured delivery carried a signature that verifies
@@ -342,7 +370,8 @@ func TestIntegration_FullSession_DefaultMode(t *testing.T) {
 	}
 	wantToken := mockAccessToken(testStoreID)
 	if payload.AccessToken != wantToken {
-		t.Errorf("payload access_token = %q, want %q", payload.AccessToken, wantToken)
+		// Report only redacted forms — test output reaches CI logs.
+		t.Errorf("payload access_token = %q, want %q", redactToken(payload.AccessToken), redactToken(wantToken))
 	}
 	// The token round-trips intact through the payload, yet must never appear in
 	// the rendered HTML — only its redacted form does.
@@ -455,7 +484,8 @@ func TestIntegration_PayloadRoundTrip(t *testing.T) {
 				t.Errorf("store_id = %d, want 1003", payload.StoreID)
 			}
 			if payload.AccessToken != wantToken {
-				t.Errorf("access_token = %q, want %q", payload.AccessToken, wantToken)
+				// Report only redacted forms — test output reaches CI logs.
+				t.Errorf("access_token = %q, want %q", redactToken(payload.AccessToken), redactToken(wantToken))
 			}
 			// Redacted in the rendered HTML, correct in the decoded payload.
 			if strings.Contains(body, wantToken) {
@@ -543,6 +573,26 @@ func TestIntegration_Storage(t *testing.T) {
 		}
 	})
 
+	// The exact boundaries must be accepted, so an off-by-one that rejects a
+	// value sitting precisely at the limit is caught.
+	t.Run("at-limit private write accepted", func(t *testing.T) {
+		atLimit := strings.Repeat("a", maxPrivateValueBytes)
+		resp := storageRequest(t, http.MethodPut, ts.URL, "exact", token, strings.NewReader(atLimit))
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("at-limit private status = %d, want 200", resp.StatusCode)
+		}
+	})
+
+	t.Run("at-limit public write accepted", func(t *testing.T) {
+		atLimit := strings.Repeat("a", maxPublicValueBytes)
+		resp := storageRequest(t, http.MethodPut, ts.URL, reservedPublicKey, token, strings.NewReader(atLimit))
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("at-limit public status = %d, want 200", resp.StatusCode)
+		}
+	})
+
 	t.Run("wrong bearer is 401", func(t *testing.T) {
 		resp := storageRequest(t, http.MethodGet, ts.URL, "greeting", "not-the-real-token", nil)
 		_ = resp.Body.Close()
@@ -586,9 +636,13 @@ func TestIntegration_Webhooks_AllEventTypes(t *testing.T) {
 			verifyReceived(t, rcv, integSecret)
 
 			fields := rawFields(t, rcv.body)
-			if got := wireEntityIDType(fields["entityId"]); got != spec.EntityIDType() {
+			entityID, ok := fields["entityId"]
+			if !ok {
+				t.Fatalf("%s delivery omitted the entityId field", spec.Type)
+			}
+			if got := wireEntityIDType(entityID); got != spec.EntityIDType() {
 				t.Errorf("%s entityId wire type = %s, want %s (raw %s)",
-					spec.Type, got, spec.EntityIDType(), fields["entityId"])
+					spec.Type, got, spec.EntityIDType(), entityID)
 			}
 			if _, hasData := fields["data"]; hasData != spec.HasData() {
 				t.Errorf("%s data key present = %v, want %v", spec.Type, hasData, spec.HasData())
@@ -628,7 +682,11 @@ func TestIntegration_Webhooks_EntityIDTypingAndDataAbsence(t *testing.T) {
 				t.Fatalf("trigger status = %d", code)
 			}
 			fields := rawFields(t, receiver.last(t).body)
-			if got := wireEntityIDType(fields["entityId"]); got != tc.wantIDType {
+			entityID, ok := fields["entityId"]
+			if !ok {
+				t.Fatalf("%s delivery omitted the entityId field", tc.event)
+			}
+			if got := wireEntityIDType(entityID); got != tc.wantIDType {
 				t.Errorf("%s entityId wire type = %s, want %s", tc.event, got, tc.wantIDType)
 			}
 			if _, hasData := fields["data"]; hasData != tc.wantHasData {
@@ -798,12 +856,14 @@ func TestIntegration_Proxy(t *testing.T) {
 		if want := "/api/v3/999/orders"; gotPath != want {
 			t.Errorf("upstream path = %q, want %q (store id not rewritten)", gotPath, want)
 		}
-		if want := "Bearer real-store-token"; gotAuth != want {
-			t.Errorf("upstream Authorization = %q, want %q (token not swapped)", gotAuth, want)
+		// Assert the swap without printing the bearer token — test output reaches
+		// CI logs.
+		if gotAuth != "Bearer "+cfg.ProxyToken {
+			t.Errorf("upstream Authorization was not swapped to the proxy token (got %q)", redactToken(gotAuth))
 		}
 	})
 
-	t.Run("read-only default blocks POST", func(t *testing.T) {
+	t.Run("read-only default blocks every mutating verb", func(t *testing.T) {
 		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			t.Error("upstream must not be reached for a blocked mutation")
 			w.WriteHeader(http.StatusOK)
@@ -816,13 +876,23 @@ func TestIntegration_Proxy(t *testing.T) {
 		cfg.ProxyReadonly = true
 		_, ts := bootMock(t, cfg, mockOpts{upstreamBase: upstream.URL})
 
-		resp, err := http.Post(ts.URL+"/api/v3/"+testStoreID+"/orders", "application/json", strings.NewReader("{}"))
-		if err != nil {
-			t.Fatalf("proxied POST: %v", err)
-		}
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusForbidden {
-			t.Errorf("proxied POST status = %d, want 403 under the read-only default", resp.StatusCode)
+		// Every write verb must be blocked, not just POST — only GET/HEAD are read
+		// methods.
+		for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+			t.Run(method, func(t *testing.T) {
+				req, err := http.NewRequest(method, ts.URL+"/api/v3/"+testStoreID+"/orders", strings.NewReader("{}"))
+				if err != nil {
+					t.Fatalf("build %s request: %v", method, err)
+				}
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					t.Fatalf("proxied %s: %v", method, err)
+				}
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusForbidden {
+					t.Errorf("proxied %s status = %d, want 403 under the read-only default", method, resp.StatusCode)
+				}
+			})
 		}
 	})
 
