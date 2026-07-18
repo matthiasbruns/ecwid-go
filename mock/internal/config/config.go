@@ -37,6 +37,11 @@ const (
 	// DefaultPort is the default listen port.
 	DefaultPort = 8080
 
+	// DefaultProxyReadonly is the default for --proxy-readonly. It is true on
+	// purpose: a proxied write mutates a REAL store and fires REAL webhooks from
+	// it, so the mock refuses mutations until the developer explicitly opts in.
+	DefaultProxyReadonly = true
+
 	// AuthModeDefault is Default User Auth: a hex-encoded plaintext payload in
 	// the URL fragment (see ecwid/appauth).
 	AuthModeDefault = "default"
@@ -98,6 +103,12 @@ type Config struct {
 	// back automatically; until then it is supplied to the app out of band.
 	AccessToken string
 
+	// ProxyReadonly gates proxied mutations. When true (the default), only
+	// GET/HEAD are forwarded and write methods return 403 — proxied writes
+	// mutate a REAL store and fire REAL webhooks from it, so the safe default is
+	// "cannot wreck your store". Set false to allow mutating proxy requests.
+	ProxyReadonly bool
+
 	// SecretGenerated reports whether ClientSecret was generated rather than
 	// supplied. When true, the startup banner prints it so the developer can
 	// configure their app to match.
@@ -124,6 +135,12 @@ func (c *Config) RedactedProxyToken() string {
 func redact(secret string) string {
 	rc := appconfig.Config{Token: secret}
 	return rc.RedactedToken()
+}
+
+// ProxyEnabled reports whether request forwarding is active. Both the target
+// store and its token are required; one without the other cannot proxy.
+func (c *Config) ProxyEnabled() bool {
+	return c.ProxyStore != "" && c.ProxyToken != ""
 }
 
 // Validate checks required fields and value constraints.
@@ -157,6 +174,12 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Sprintf("--port %d is out of range (1-65535)", c.Port))
 	}
 
+	// Proxying needs both halves: a target store and its token. One without the
+	// other is a misconfiguration, not a partial proxy.
+	if (c.ProxyStore == "") != (c.ProxyToken == "") {
+		errs = append(errs, "--proxy-store and --proxy-token must be set together to enable proxying")
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("config validation: %s", strings.Join(errs, "; "))
 	}
@@ -170,10 +193,11 @@ func (c *Config) Validate() error {
 // SecretGenerated is set.
 func Load(cmd *cobra.Command) (Config, error) {
 	cfg := Config{
-		ClientID: DefaultClientID,
-		StoreID:  DefaultStoreID,
-		AuthMode: DefaultAuthMode,
-		Port:     DefaultPort,
+		ClientID:      DefaultClientID,
+		StoreID:       DefaultStoreID,
+		AuthMode:      DefaultAuthMode,
+		Port:          DefaultPort,
+		ProxyReadonly: DefaultProxyReadonly,
 	}
 
 	cfg.AppURL = resolveString(cmd, "app-url", "ECWID_MOCK_APP_URL", "")
@@ -191,6 +215,12 @@ func Load(cmd *cobra.Command) (Config, error) {
 		return Config{}, err
 	}
 	cfg.Port = port
+
+	readonly, err := resolveBool(cmd, "proxy-readonly", "ECWID_MOCK_PROXY_READONLY", DefaultProxyReadonly)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.ProxyReadonly = readonly
 
 	if cfg.ClientSecret == "" {
 		secret, err := generateSecret()
@@ -223,6 +253,29 @@ func resolveString(cmd *cobra.Command, flag, env, def string) string {
 		return v
 	}
 	return def
+}
+
+// resolveBool applies flags > env > default for a boolean value. The flag wins
+// only when explicitly set; otherwise the env var is parsed with
+// strconv.ParseBool ("1", "t", "true", "0", "f", "false", …); otherwise def.
+func resolveBool(cmd *cobra.Command, flag, env string, def bool) (bool, error) {
+	if cmd != nil {
+		if f := cmd.Flags().Lookup(flag); f != nil && f.Changed {
+			b, err := cmd.Flags().GetBool(flag)
+			if err != nil {
+				return false, fmt.Errorf("parse --%s: %w", flag, err)
+			}
+			return b, nil
+		}
+	}
+	if v, ok := os.LookupEnv(env); ok {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return false, fmt.Errorf("parse %s %q: %w", env, v, err)
+		}
+		return b, nil
+	}
+	return def, nil
 }
 
 // resolvePort applies flags > env > default for the listen port.

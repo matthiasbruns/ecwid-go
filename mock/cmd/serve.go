@@ -35,6 +35,7 @@ func init() {
 	f.String("proxy-store", "", "store ID to forward unimplemented REST calls to (env: ECWID_MOCK_PROXY_STORE)")
 	f.String("proxy-token", "", "access token for the proxy store (env: ECWID_MOCK_PROXY_TOKEN)")
 	f.String("access-token", "", "access_token issued in the payload and required as Bearer on REST calls; generated if unset (env: ECWID_MOCK_ACCESS_TOKEN)")
+	f.Bool("proxy-readonly", config.DefaultProxyReadonly, "only proxy GET/HEAD; block proxied mutations (they hit the real store and fire real webhooks) (env: ECWID_MOCK_PROXY_READONLY)")
 
 	rootCmd.AddCommand(serveCmd)
 }
@@ -73,6 +74,25 @@ func printBanner(w io.Writer, cfg *config.Config) error {
 		banner += fmt.Sprintf("  client_secret (generated): %s\n", cfg.ClientSecret) +
 			"  ^ configure your app with this secret; override with --client-secret\n"
 	}
+	banner += proxyBanner(cfg)
 	_, err := io.WriteString(w, banner)
 	return err
+}
+
+// proxyBanner returns the prominent proxy warning block, or "" when proxying is
+// off. It names the target store and read-only state so forwarding is never a
+// silent surprise, and it prints the proxy token only in redacted form.
+func proxyBanner(cfg *config.Config) string {
+	if !cfg.ProxyEnabled() {
+		return ""
+	}
+	b := "\n  ⚠ PROXY ENABLED — unimplemented REST endpoints forward to a REAL store\n" +
+		fmt.Sprintf("     target store: %s\n", cfg.ProxyStore) +
+		fmt.Sprintf("     token:        %s\n", cfg.RedactedProxyToken())
+	if cfg.ProxyReadonly {
+		b += "     read-only:    true — GET/HEAD proxy; writes blocked (--proxy-readonly=false to allow)\n"
+	} else {
+		b += "     read-only:    FALSE — proxied POST/PUT/DELETE MUTATE the real store and fire REAL webhooks\n"
+	}
+	return b
 }

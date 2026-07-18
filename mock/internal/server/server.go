@@ -52,6 +52,15 @@ type Server struct {
 	http    *http.Server
 	store   *appStorage
 	trigger *webhook.Trigger
+
+	// upstreamBase is the scheme+host proxied requests are forwarded to. It
+	// defaults to defaultUpstreamBase and is overridden by tests to point at an
+	// httptest server instead of the real Ecwid API.
+	upstreamBase string
+	// proxyClient forwards proxied requests. It is a plain http.Client (not the
+	// ecwid internal/api transport, which is JSON-oriented and cannot pass an
+	// opaque response through) with a bounded timeout.
+	proxyClient *http.Client
 }
 
 // New builds a Server with all routes registered. The provided logger is used
@@ -74,6 +83,8 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 			StoreID:      parseStoreID(cfg.StoreID, log),
 			URL:          cfg.WebhookURL,
 		}),
+		upstreamBase: defaultUpstreamBase,
+		proxyClient:  &http.Client{Timeout: proxyTimeout, Transport: newProxyTransport()},
 	}
 
 	s.routes()
@@ -109,6 +120,14 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PUT /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
 	s.mux.HandleFunc("POST /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
 	s.mux.HandleFunc("DELETE /api/v3/{storeId}/storage/{key}", s.handleStorageDelete)
+
+	// Simulated Ecwid REST namespace. This catch-all backstops every REST route
+	// the mock does not implement locally: it proxies to a real store when
+	// configured, otherwise returns an informative 501. Locally-implemented
+	// routes (e.g. /storage above) register more specific patterns that
+	// ServeMux prefers over this one; the handler also guards /storage directly
+	// so it is never proxied.
+	s.mux.HandleFunc("/api/v3/{storeId}/{rest...}", s.handleRESTFallback)
 
 	// Control plane: the webhook trigger API and its UI panel.
 	webhook.NewHandler(s.trigger).Routes(s.mux)
