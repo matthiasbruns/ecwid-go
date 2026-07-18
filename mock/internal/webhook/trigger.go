@@ -138,6 +138,13 @@ func NewTrigger(cfg Config) *Trigger {
 				DialContext:           (&net.Dialer{Timeout: connectTimeout}).DialContext,
 				ResponseHeaderTimeout: responseTimeout,
 			},
+			// Do not follow redirects: Ecwid does not, so an endpoint that 301s
+			// (e.g. HTTP->HTTPS) silently never receives the webhook. Surfacing
+			// that is a headline goal — following the redirect would hide it and
+			// mislabel the delivery as a success.
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
 		}
 	}
 	now := cfg.Now
@@ -255,6 +262,11 @@ func (t *Trigger) Fire(ctx context.Context, req Request) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+
+	// Bound the whole exchange, so a stalled body read cannot exceed Ecwid's
+	// budget: ResponseHeaderTimeout caps only time-to-first-header, not the body.
+	ctx, cancel := context.WithTimeout(ctx, connectTimeout+responseTimeout)
+	defer cancel()
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, t.url, bytes.NewReader(body))
 	if err != nil {

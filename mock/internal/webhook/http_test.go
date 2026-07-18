@@ -78,10 +78,11 @@ func TestHTTP_Trigger_NoURLReturns409(t *testing.T) {
 func TestHTTP_Trigger_BadRequests(t *testing.T) {
 	control := newTestServer(t, "http://127.0.0.1:0")
 	cases := map[string]string{
-		"missing eventType": `{"entityId":1}`,
-		"unknown event":     `{"eventType":"no.such.event"}`,
-		"malformed JSON":    `{`,
-		"unknown field":     `{"eventType":"order.created","nope":1}`,
+		"missing eventType":  `{"entityId":1}`,
+		"unknown event":      `{"eventType":"no.such.event"}`,
+		"malformed JSON":     `{`,
+		"unknown field":      `{"eventType":"order.created","nope":1}`,
+		"bad signature mode": `{"eventType":"order.created","signature":"bogus"}`,
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {

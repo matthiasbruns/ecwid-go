@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"html/template"
@@ -50,11 +51,15 @@ func (h *Handler) handleUI(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "render webhook panel", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := panelTemplate.Execute(w, data); err != nil {
-		// Headers are already committed; nothing actionable remains.
+	// Render into a buffer so a template error becomes a clean 500 rather than a
+	// half-written 200 with a truncated page.
+	var buf bytes.Buffer
+	if err := panelTemplate.Execute(&buf, data); err != nil {
+		http.Error(w, "render webhook panel", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = buf.WriteTo(w)
 }
 
 // buildPanelData assembles the template model from the event catalog.
