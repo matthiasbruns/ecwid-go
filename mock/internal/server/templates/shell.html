@@ -1,0 +1,315 @@
+{{define "shell.html" -}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ecwid-mock — admin shell</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --border: #dfe3e8;
+      --ink: #1a1f27;
+      --muted: #6b7280;
+      --accent: #2a7de1;
+      --warn-bg: #fff8e1;
+      --warn-border: #f0c000;
+      --warn-ink: #6b5300;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    header.topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1e2a38;
+      color: #fff;
+      padding: 10px 16px;
+    }
+    header.topbar .brand { font-weight: 600; letter-spacing: .2px; }
+    header.topbar .tag {
+      font-size: 12px;
+      color: #b9c4d0;
+      border: 1px solid #38485a;
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 10px;
+    }
+    .badge.default { background: #e3f0ff; color: #1c5fb0; }
+    .badge.enhanced { background: #efe3ff; color: #6a2fb0; }
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+      padding: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .panel h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+    .muted { color: var(--muted); }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 2px; }
+    input[type=text], select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      padding: 7px 14px;
+    }
+    button.secondary { background: #fff; color: var(--accent); }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
+    table.kv { width: 100%; border-collapse: collapse; }
+    table.kv th, table.kv td {
+      text-align: left;
+      padding: 5px 4px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      font-size: 13px;
+    }
+    table.kv th { color: var(--muted); font-weight: 500; width: 40%; }
+    code, .mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+    .warn {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      color: var(--warn-ink);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .warn strong { display: block; margin-bottom: 4px; }
+    .frame-wrap { position: relative; background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .frame-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted);
+    }
+    iframe#app-frame { width: 100%; height: 640px; border: 0; display: block; background: #fff; }
+    #loading {
+      position: absolute; inset: 41px 0 0 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,.9); color: var(--muted); font-size: 13px;
+    }
+    #loading .spinner {
+      width: 18px; height: 18px; margin-right: 10px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #event-log { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; }
+    #event-log li { padding: 6px 4px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12px; }
+    #event-log li .m { color: var(--accent); font-weight: 600; }
+    #event-log li .t { color: var(--muted); }
+    #event-log .empty { color: var(--muted); font-family: inherit; font-style: italic; }
+    details.help { margin-top: 8px; }
+    details.help summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+    details.help p, details.help li { font-size: 13px; }
+    .copywrap { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+    .copywrap .preview { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">ecwid-mock</span>
+    <span class="tag">admin shell</span>
+    {{if .Enhanced}}<span class="badge enhanced">auth: enhanced</span>{{else}}<span class="badge default">auth: default</span>{{end}}
+  </header>
+
+  <div class="layout">
+    <aside>
+      <section class="panel">
+        <h2>Payload controls</h2>
+        <form method="get" action="/">
+          <label for="store_id">store_id</label>
+          <input type="text" id="store_id" name="store_id" value="{{.StoreID}}">
+          <label for="lang">lang</label>
+          <input type="text" id="lang" name="lang" value="{{.Lang}}">
+          <label for="view_mode">view_mode</label>
+          <select id="view_mode" name="view_mode">
+            {{$vm := .ViewMode}}
+            <option value="PAGE"{{if eq $vm "PAGE"}} selected{{end}}>PAGE</option>
+            <option value="POPUP"{{if eq $vm "POPUP"}} selected{{end}}>POPUP</option>
+            <option value="INLINE"{{if eq $vm "INLINE"}} selected{{end}}>INLINE</option>
+          </select>
+          <label for="app_state">app_state</label>
+          <input type="text" id="app_state" name="app_state" value="{{.AppState}}" placeholder="deep-link state, e.g. orderId:12">
+          <div class="row">
+            <button type="submit">Reload iframe</button>
+            <button type="button" class="secondary" id="copy-raw" data-raw="{{.RawPayload}}">Copy raw payload</button>
+          </div>
+          <div class="copywrap"><span class="preview mono">{{.RawKind}}</span></div>
+        </form>
+      </section>
+
+      {{if .Enhanced}}
+      <div class="warn">
+        <strong>Enhanced mode: EcwidApp.getPayload() will be undefined.</strong>
+        The SDK only hex-decodes the fragment (or a <code>payload</code>/<code>devpayload</code>
+        query param) — it never decrypts. Your app must read <code>?payload=</code> server-side and
+        decrypt it (e.g. <code>appauth.Decrypt</code>), then inject the result into its own HTML,
+        exactly as Ecwid's docs do with <code>var payload = &lt;?php echo $result; ?&gt;;</code>.
+      </div>
+      {{end}}
+
+      <section class="panel">
+        <h2>Decoded payload</h2>
+        <table class="kv">
+          <tr><th>store_id</th><td class="mono">{{.Payload.StoreID}}</td></tr>
+          <tr><th>lang</th><td class="mono">{{.Payload.Lang}}</td></tr>
+          <tr><th>access_token</th><td class="mono">{{.Payload.AccessToken}} <span class="muted">(redacted)</span></td></tr>
+          <tr><th>public_token</th><td class="mono">{{if .Payload.PublicToken}}{{.Payload.PublicToken}} <span class="muted">(redacted)</span>{{else}}<span class="muted">—</span>{{end}}</td></tr>
+          <tr><th>view_mode</th><td class="mono">{{.Payload.ViewMode}}</td></tr>
+          <tr><th>app_state</th><td class="mono">{{if .Payload.AppState}}{{.Payload.AppState}}{{else}}<span class="muted">—</span>{{end}}</td></tr>
+          <tr><th>domain</th><td class="mono">{{if .Payload.Domain}}{{.Payload.Domain}}{{else}}<span class="muted">—</span>{{end}}</td></tr>
+        </table>
+        {{if .CacheKiller}}<p class="muted" style="margin:8px 0 0">cache-killer: <span class="mono">{{.CacheKiller}}</span></p>{{end}}
+        <details class="help">
+          <summary>Point the SDK's storage calls at the mock</summary>
+          <p class="muted">The SDK's <code>getAppStorage</code>/<code>setAppStorage</code> calls hit
+          <code>app.ecwid.com</code> by default. To redirect them here, the app must opt in via
+          either hook:</p>
+          <ul class="muted">
+            <li>define <code>window.getEcwidSdkApiDomain()</code> to return this host (cleanest), or</li>
+            <li>rely on the undocumented <code>domain</code> payload field (SDK 1.3.1+).</li>
+          </ul>
+          <p class="muted">Reference SDK: <span class="mono">{{.SdkURL}}</span></p>
+        </details>
+      </section>
+
+      {{block "webhookPanel" .}}
+      <section class="panel" id="webhook-panel">
+        <h2>Webhooks</h2>
+        <p class="muted">Webhook trigger panel — added in #6.</p>
+      </section>
+      {{end}}
+    </aside>
+
+    <main>
+      <div class="frame-wrap">
+        <div class="frame-head">
+          <span>app iframe — <span class="mono">{{.AppURL}}</span></span>
+          <span class="mono">origin: {{.AppOrigin}}</span>
+        </div>
+        <div id="loading"><span class="spinner"></span> waiting for EcwidApp.ready()…</div>
+        <iframe id="app-frame" src="{{.IframeURL}}" title="embedded app"></iframe>
+      </div>
+
+      <section class="panel" style="margin-top:16px">
+        <h2>postMessage event log</h2>
+        <ul id="event-log"><li class="empty">No messages yet. child→parent SDK calls (ready, setSize, openPage, closeAppPopup, upgradePlan) appear here.</li></ul>
+      </section>
+    </main>
+  </div>
+
+  <script type="application/json" id="shell-config">{{.ConfigJS}}</script>
+  <script>
+    (function () {
+      "use strict";
+      var cfg = JSON.parse(document.getElementById("shell-config").textContent);
+      var iframe = document.getElementById("app-frame");
+      var loading = document.getElementById("loading");
+      var logEl = document.getElementById("event-log");
+      var empty = logEl.querySelector(".empty");
+
+      function pad(n) { return n < 10 ? "0" + n : "" + n; }
+      function stamp(d) { return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()); }
+
+      function addLog(method, data) {
+        if (empty) { empty.remove(); empty = null; }
+        var li = document.createElement("li");
+        var m = document.createElement("span");
+        m.className = "m"; m.textContent = method;
+        var t = document.createElement("span");
+        t.className = "t"; t.textContent = "  " + stamp(new Date());
+        li.appendChild(m);
+        if (data !== undefined && data !== null && !(typeof data === "object" && Object.keys(data).length === 0)) {
+          var d = document.createElement("span");
+          d.textContent = "  " + JSON.stringify(data);
+          li.appendChild(d);
+        }
+        li.appendChild(t);
+        logEl.insertBefore(li, logEl.firstChild);
+      }
+
+      window.addEventListener("message", function (e) {
+        // The SDK posts child→parent with target origin "*", so validate the
+        // sender origin against the configured app URL before trusting anything.
+        if (e.origin !== cfg.appOrigin) { return; }
+        var msg;
+        try { msg = JSON.parse(e.data); } catch (err) { return; }
+        if (!msg || String(msg.ecwidAppNs) !== String(cfg.clientId)) { return; }
+
+        switch (msg.method) {
+          case "ready":
+            loading.style.display = "none";
+            addLog("ready", msg.data);
+            break;
+          case "setSize":
+            if (msg.data && typeof msg.data.height === "number") {
+              iframe.style.height = msg.data.height + "px";
+            }
+            addLog("setSize", msg.data);
+            break;
+          case "openPage":
+          case "closeAppPopup":
+          case "upgradePlan":
+          default:
+            addLog(msg.method, msg.data);
+            break;
+        }
+      });
+
+      var copyBtn = document.getElementById("copy-raw");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", function () {
+          var raw = copyBtn.getAttribute("data-raw") || "";
+          var done = function () {
+            var prev = copyBtn.textContent;
+            copyBtn.textContent = "Copied!";
+            setTimeout(function () { copyBtn.textContent = prev; }, 1200);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(raw).then(done, function () { window.prompt("Copy raw payload:", raw); });
+          } else {
+            window.prompt("Copy raw payload:", raw);
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
+{{- end}}
