@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>fake embedded app</title>
+</head>
+<body>
+  <!-- A stand-in for the developer's iframed app. It exists only so the mock's
+       admin shell has a real, reachable origin to point its iframe at during the
+       integration tests; there is no headless browser, so nothing here executes
+       under test. The marker below lets a test assert the page was served. -->
+  <main id="fake-app" data-role="ecwid-native-app">
+    <h1>ecwid-mock fake app</h1>
+    <p>Reads its store context from the auth payload the shell injects.</p>
+  </main>
+  <script>
+    // In a real app this is where the SDK (or a server-side decrypt) would read
+    // the payload from location.hash / ?payload= and call EcwidApp.ready(). The
+    // integration tests exercise that contract over HTTP rather than in a
+    // browser, so this stays deliberately inert.
+    window.__fakeAppLoaded = true;
+  </script>
+</body>
+</html>
