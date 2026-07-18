@@ -92,10 +92,10 @@ type Config struct {
 	// ProxyToken is the access token for the proxy store. Optional.
 	ProxyToken string
 
-	// AccessToken is the access_token the mock issues in the iframe payload and
-	// requires as the Bearer credential on simulated REST calls. It reaches the
-	// app through the injected payload, so the developer never configures it by
-	// hand. Generated if not supplied.
+	// AccessToken is the access_token the mock requires as the Bearer credential
+	// on simulated REST calls. Generated if not supplied. The admin shell (#4)
+	// will inject this same value into the iframe payload so the SDK sends it
+	// back automatically; until then it is supplied to the app out of band.
 	AccessToken string
 
 	// SecretGenerated reports whether ClientSecret was generated rather than

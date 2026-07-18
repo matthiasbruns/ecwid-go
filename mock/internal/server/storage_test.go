@@ -185,6 +185,19 @@ func TestStorage_Unauthorized(t *testing.T) {
 	}
 }
 
+// TestStorage_EmptyConfiguredTokenRejects asserts a Server built with no access
+// token rejects every request, including a bare "Authorization: Bearer " header,
+// rather than running with effectively no auth.
+func TestStorage_EmptyConfiguredTokenRejects(t *testing.T) {
+	srv := New(config.Config{Port: 0}, discardLogger())
+
+	bare := httptest.NewRequest(http.MethodGet, path("k"), http.NoBody)
+	bare.Header.Set("Authorization", "Bearer ")
+	if rec := do(srv, bare); rec.Code != http.StatusUnauthorized {
+		t.Errorf("bare Bearer with empty configured token status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
 // TestStorage_List asserts the list route returns every entry as a sorted JSON
 // array, and an empty store returns [] rather than null.
 func TestStorage_List(t *testing.T) {

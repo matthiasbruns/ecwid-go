@@ -103,6 +103,12 @@ func valueLimit(key string) int {
 // constant-time to avoid leaking the token through timing.
 func (s *Server) authorized(r *http.Request) bool {
 	const prefix = "Bearer "
+	// An empty configured token would otherwise accept "Authorization: Bearer "
+	// (empty credential), so a Server built with a bare config.Config{} would run
+	// with effectively no auth. Reject that explicitly.
+	if s.cfg.AccessToken == "" {
+		return false
+	}
 	h := r.Header.Get("Authorization")
 	if !strings.HasPrefix(h, prefix) {
 		return false
@@ -155,7 +161,7 @@ func (s *Server) handleStoragePut(w http.ResponseWriter, r *http.Request) {
 	// buffering an unbounded body.
 	body, err := io.ReadAll(io.LimitReader(r.Body, int64(limit)+1))
 	if err != nil {
-		writeStorageError(w, http.StatusBadRequest, "read request body")
+		writeStorageError(w, http.StatusBadRequest, "failed to read request body")
 		return
 	}
 	if len(body) > limit {
