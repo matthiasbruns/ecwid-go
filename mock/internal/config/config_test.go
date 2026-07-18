@@ -21,6 +21,7 @@ func newCmd() *cobra.Command {
 	f.Int("port", DefaultPort, "")
 	f.String("proxy-store", "", "")
 	f.String("proxy-token", "", "")
+	f.String("access-token", "", "")
 	return cmd
 }
 
@@ -52,6 +53,27 @@ func TestLoad_Defaults(t *testing.T) {
 	}
 	if len(cfg.ClientSecret) < MinClientSecretLen {
 		t.Errorf("generated ClientSecret len = %d, want >= %d", len(cfg.ClientSecret), MinClientSecretLen)
+	}
+	if cfg.AccessToken == "" {
+		t.Error("AccessToken is empty, want a generated token when none supplied")
+	}
+}
+
+func TestLoad_SuppliedAccessToken(t *testing.T) {
+	cmd := newCmd()
+	if err := cmd.Flags().Set("app-url", "http://localhost:3000"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("access-token", "supplied-token"); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(cmd)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.AccessToken != "supplied-token" {
+		t.Errorf("AccessToken = %q, want supplied value", cfg.AccessToken)
 	}
 }
 

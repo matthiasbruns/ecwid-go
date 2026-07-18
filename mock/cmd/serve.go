@@ -34,6 +34,7 @@ func init() {
 	f.Int("port", config.DefaultPort, "listen port (env: ECWID_MOCK_PORT)")
 	f.String("proxy-store", "", "store ID to forward unimplemented REST calls to (env: ECWID_MOCK_PROXY_STORE)")
 	f.String("proxy-token", "", "access token for the proxy store (env: ECWID_MOCK_PROXY_TOKEN)")
+	f.String("access-token", "", "access_token issued in the payload and required as Bearer on REST calls; generated if unset (env: ECWID_MOCK_ACCESS_TOKEN)")
 
 	rootCmd.AddCommand(serveCmd)
 }
