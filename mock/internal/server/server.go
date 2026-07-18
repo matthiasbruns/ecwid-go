@@ -98,6 +98,10 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /_mock/health", handleHealth)
 
+	// The admin shell lives at the site root only; unknown paths fall through to
+	// ServeMux's 404 rather than being swallowed by a catch-all.
+	s.mux.HandleFunc("GET /{$}", s.handleShell)
+
 	// Simulated Ecwid REST: the app-storage endpoints the JS SDK actually calls
 	// over HTTP (getAppStorage/setAppStorage and the public-config variants).
 	s.mux.HandleFunc("GET /api/v3/{storeId}/storage", s.handleStorageList)
