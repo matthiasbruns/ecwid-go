@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 )
 
@@ -15,26 +16,26 @@ import (
 // unauthenticated POST cannot exhaust memory.
 const maxBodyBytes = 1 << 20 // 1 MiB
 
-// isSuccessCode reports whether Ecwid accepts status as a successful delivery.
-// Everything else, including 203, 208 and every 3xx, is a failed delivery that
-// Ecwid will retry.
-func isSuccessCode(status int) bool {
-	switch status {
-	case http.StatusOK, // 200
+// SuccessCodes lists the HTTP status codes Ecwid counts as a successful webhook
+// delivery: 200, 201, 202, 204 and 209. Every other status — including 203, 208
+// and every 3xx — is a failed delivery that Ecwid retries.
+//
+// It returns a fresh slice per call, so there is no package-level state to
+// mutate, and exists so local tooling (the mock server's delivery classifier)
+// applies exactly the set this package enforces rather than a hand-copied one.
+func SuccessCodes() []int {
+	return []int{
+		http.StatusOK,        // 200
 		http.StatusCreated,   // 201
 		http.StatusAccepted,  // 202
 		http.StatusNoContent, // 204
-		209:                  // no net/http constant; not a registered IANA code
-		return true
-	default:
-		return false
+		209,                  // no net/http constant; not a registered IANA code
 	}
 }
 
-// successCodes lists those same codes for error messages and tests. It returns a
-// fresh slice per call, so there is no package-level state to mutate.
-func successCodes() []int {
-	return []int{http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent, 209}
+// isSuccessCode reports whether Ecwid accepts status as a successful delivery.
+func isSuccessCode(status int) bool {
+	return slices.Contains(SuccessCodes(), status)
 }
 
 // Deduper records which events have been processed, so a replayed or retried
@@ -136,7 +137,7 @@ func NewHandler(clientSecret string, handle func(ctx context.Context, e Event), 
 		code = http.StatusOK
 	}
 	if !isSuccessCode(code) {
-		return nil, fmt.Errorf("webhooks: SuccessCode %d is not one Ecwid accepts (want one of %v)", code, successCodes())
+		return nil, fmt.Errorf("webhooks: SuccessCode %d is not one Ecwid accepts (want one of %v)", code, SuccessCodes())
 	}
 	if opts.MaxAge < 0 {
 		return nil, fmt.Errorf("webhooks: MaxAge must not be negative, got %s", opts.MaxAge)

@@ -58,9 +58,18 @@ func mac(eventCreated int64, eventID, clientSecret string) []byte {
 	return h.Sum(nil)
 }
 
-// sign produces the signature Verify expects. Kept unexported: real callers only
-// ever verify, and an exported signer would invite using this package to forge
-// the very events it exists to authenticate.
-func sign(eventCreated int64, eventID, clientSecret string) string {
+// Sign produces the signature [Verify] expects: the value Ecwid would send in
+// [SignatureHeader] for the given (eventCreated, eventID) pair.
+//
+// It exists for local tooling that must emit webhooks the same package verifies —
+// the mock server's webhook trigger, and test harnesses — so signing and
+// verification share one MAC and cannot drift. It is deliberately the only
+// exported way to produce a signature: real integrations receive webhooks and
+// only ever verify.
+//
+// Signing requires the app's client_secret, so exposing it grants no capability
+// to anyone who does not already hold that secret — the secret alone is enough to
+// forge by any means. Guard the secret, never the algorithm.
+func Sign(eventCreated int64, eventID, clientSecret string) string {
 	return base64.StdEncoding.EncodeToString(mac(eventCreated, eventID, clientSecret))
 }

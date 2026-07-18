@@ -67,7 +67,7 @@ func newRequest(body string, signature *string) *http.Request {
 	}
 	var e Event
 	if err := json.Unmarshal([]byte(body), &e); err == nil {
-		r.Header.Set(SignatureHeader, sign(e.EventCreated, e.EventID, testSecret))
+		r.Header.Set(SignatureHeader, Sign(e.EventCreated, e.EventID, testSecret))
 	}
 	return r
 }
@@ -131,13 +131,13 @@ func TestHandler_RejectsBadSignature(t *testing.T) {
 			// *signed* fields were altered does not.
 			name:       "tampered eventId",
 			body:       strings.Replace(orderCreatedBody, `"eventId":"80aece08-40e8-4145-8764-6c2f0d38678"`, `"eventId":"00000000-0000-0000-0000-000000000000"`, 1),
-			signature:  new(sign(testEventCreated, testEventID, testSecret)),
+			signature:  new(Sign(testEventCreated, testEventID, testSecret)),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "signature from a different secret",
 			body:       orderCreatedBody,
-			signature:  new(sign(testEventCreated, testEventID, "some_other_secret")),
+			signature:  new(Sign(testEventCreated, testEventID, "some_other_secret")),
 			wantStatus: http.StatusUnauthorized,
 		},
 	}
@@ -325,7 +325,7 @@ func TestHandler_OnErrorNeverLeaksSecrets(t *testing.T) {
 }
 
 func TestHandler_SuccessCode(t *testing.T) {
-	for _, code := range successCodes() {
+	for _, code := range SuccessCodes() {
 		t.Run(fmt.Sprint(code), func(t *testing.T) {
 			var rec recorder
 			h := newTestHandler(t, rec.handle, &Options{SuccessCode: code})
@@ -407,7 +407,7 @@ func TestHandler_RespondsBeforeCallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRequest() = %v", err)
 	}
-	req.Header.Set(SignatureHeader, sign(testEventCreated, testEventID, testSecret))
+	req.Header.Set(SignatureHeader, Sign(testEventCreated, testEventID, testSecret))
 
 	// Do runs asynchronously: should the handler ever wait for the callback
 	// before responding, it and the callback would wait on each other forever,
@@ -475,7 +475,7 @@ func TestHandler_CallbackContextNotCanceled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRequest() = %v", err)
 	}
-	req.Header.Set(SignatureHeader, sign(testEventCreated, testEventID, testSecret))
+	req.Header.Set(SignatureHeader, Sign(testEventCreated, testEventID, testSecret))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

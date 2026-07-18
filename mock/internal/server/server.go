@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/matthiasbruns/ecwid-go/mock/internal/config"
+	"github.com/matthiasbruns/ecwid-go/mock/internal/webhook"
 )
 
 // readHeaderTimeout bounds how long the server waits for request headers,
@@ -45,11 +46,12 @@ const shutdownTimeout = 10 * time.Second
 
 // Server wraps the HTTP server and its configuration.
 type Server struct {
-	cfg   config.Config
-	log   *slog.Logger
-	mux   *http.ServeMux
-	http  *http.Server
-	store *appStorage
+	cfg     config.Config
+	log     *slog.Logger
+	mux     *http.ServeMux
+	http    *http.Server
+	store   *appStorage
+	trigger *webhook.Trigger
 }
 
 // New builds a Server with all routes registered. The provided logger is used
@@ -67,6 +69,11 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 		log:   log,
 		mux:   mux,
 		store: newAppStorage(),
+		trigger: webhook.NewTrigger(webhook.Config{
+			ClientSecret: cfg.ClientSecret,
+			StoreID:      parseStoreID(cfg.StoreID, log),
+			URL:          cfg.WebhookURL,
+		}),
 	}
 
 	s.routes()
@@ -85,9 +92,9 @@ func New(cfg config.Config, log *slog.Logger) *Server {
 	return s
 }
 
-// routes registers the mock's HTTP handlers. Only the control-plane health
-// check exists in this skeleton; the admin shell, simulated REST, and remaining
-// control endpoints are added by later issues.
+// routes registers the mock's HTTP handlers. The admin shell and simulated REST
+// namespaces are filled in by later issues; the control plane carries the health
+// check and the webhook trigger API and UI.
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /_mock/health", handleHealth)
 
@@ -98,6 +105,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PUT /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
 	s.mux.HandleFunc("POST /api/v3/{storeId}/storage/{key}", s.handleStoragePut)
 	s.mux.HandleFunc("DELETE /api/v3/{storeId}/storage/{key}", s.handleStorageDelete)
+
+	// Control plane: the webhook trigger API and its UI panel.
+	webhook.NewHandler(s.trigger).Routes(s.mux)
 }
 
 // Run starts the server and blocks until ctx is canceled (e.g. on SIGINT or
@@ -137,4 +147,16 @@ func (s *Server) Run(ctx context.Context) error {
 // Handler exposes the underlying mux for tests.
 func (s *Server) Handler() http.Handler {
 	return s.mux
+}
+
+// parseStoreID converts the configured store ID to the numeric form Ecwid puts
+// in a webhook's storeId. A non-numeric value is not fatal — the mock still runs
+// and fires webhooks — so it logs and falls back to 0 rather than failing.
+func parseStoreID(id string, log *slog.Logger) int64 {
+	n, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		log.Warn("store ID is not numeric; webhooks will use storeId 0", "store_id", id)
+		return 0
+	}
+	return n
 }

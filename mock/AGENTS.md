@@ -43,12 +43,37 @@ mock/
 └── internal/
     ├── config/                 # mock Config: flags > env > defaults, validation
     │   └── config.go
+    ├── webhook/                # webhook trigger: compose, sign, deliver, classify
+    │   ├── catalog.go          # the 42 event fixtures + per-family metadata
+    │   ├── trigger.go          # Trigger: compose (ecwid/webhooks), sign, POST
+    │   ├── classify.go         # Ecwid success/failure rules, with reasons
+    │   ├── http.go             # control API handlers (trigger, events)
+    │   ├── ui.go               # trigger panel handler
+    │   └── templates/panel.html
     └── server/                 # ServeMux, request logging, graceful lifecycle
         ├── server.go           # New, routes, Run (graceful shutdown)
         ├── middleware.go       # structured slog request logging
         ├── health.go           # GET /_mock/health
         └── storage.go          # app-storage REST endpoints (the JS SDK's only HTTP calls)
 ```
+
+## Webhook trigger (control plane)
+
+The mock's headline feature — Ecwid ships no webhook test tooling at all. All
+under `/_mock/` (the control-plane namespace):
+
+| Route | Purpose |
+|-------|---------|
+| `POST /_mock/webhooks/trigger` | Compose, sign, and deliver a webhook; returns the delivery result (status, latency, success/failure classification with reason, response body). **The primary surface** — CI integration tests drive this; the UI is a client of it. |
+| `GET /_mock/webhooks/events` | The 42 event types with their group, `entityId` wire type, and fixture `data`. |
+| `GET /_mock/webhooks/ui` | The developer-facing trigger panel (stdlib `html/template` + `go:embed`, no JS framework). |
+
+Events are composed with `ecwid/webhooks` (types, `Event` marshaling, `Sign`,
+`SuccessCodes`) so the mock exercises the exact code a real integration runs —
+including the `entityId` quirk (a number for order/product families, a quoted
+string for `application.*`) and the no-`data`-key families. The 24h/27-attempt
+retry schedule is deliberately **not** implemented; report the outcome and let
+the user re-fire.
 
 Everything lives under `internal/` — this module ships a binary, not a library,
 so it has **zero exported API surface** to keep as a compatibility contract.
