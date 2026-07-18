@@ -117,10 +117,10 @@ func TestVerify_Rejects(t *testing.T) {
 // not be concatenable into the same message by different values.
 func TestVerify_SeparatorIsNotAmbiguous(t *testing.T) {
 	// "1.23" and "12.3" must sign differently.
-	a := sign(1, "23", testSecret)
-	b := sign(12, "3", testSecret)
+	a := Sign(1, "23", testSecret)
+	b := Sign(12, "3", testSecret)
 	if a == b {
-		t.Error("sign(1, \"23\") == sign(12, \"3\"), separator is being ignored")
+		t.Error("Sign(1, \"23\") == Sign(12, \"3\"), separator is being ignored")
 	}
 	if err := Verify(a, 12, "3", testSecret); err == nil {
 		t.Error("Verify() accepted a signature for a different (eventCreated, eventID) split")
@@ -129,14 +129,14 @@ func TestVerify_SeparatorIsNotAmbiguous(t *testing.T) {
 
 func TestVerify_NegativeAndZeroEventCreated(t *testing.T) {
 	for _, created := range []int64{0, -1} {
-		if err := Verify(sign(created, testEventID, testSecret), created, testEventID, testSecret); err != nil {
+		if err := Verify(Sign(created, testEventID, testSecret), created, testEventID, testSecret); err != nil {
 			t.Errorf("Verify() with eventCreated = %d = %v, want nil", created, err)
 		}
 	}
 }
 
 func TestSign_MatchesKnownGoodVector(t *testing.T) {
-	if got := sign(testEventCreated, testEventID, testSecret); got != testSignature {
-		t.Errorf("sign() = %q, want %q", got, testSignature)
+	if got := Sign(testEventCreated, testEventID, testSecret); got != testSignature {
+		t.Errorf("Sign() = %q, want %q", got, testSignature)
 	}
 }

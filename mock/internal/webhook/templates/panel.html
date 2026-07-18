@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Webhook Trigger — ecwid-mock</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem;
+    font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    max-width: 900px; margin-inline: auto;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .target { color: #2a7; }
+  .warn {
+    background: #fff3cd; color: #664d03; border: 1px solid #ffe69c;
+    padding: .6rem .8rem; border-radius: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .warn { background: #332701; color: #ffda6a; border-color: #665101; }
+  }
+  form { display: grid; gap: 1rem; margin-top: 1.5rem; }
+  label { display: grid; gap: .3rem; font-weight: 600; }
+  .hint { font-weight: 400; opacity: .7; font-size: .85rem; }
+  select, input, textarea {
+    font: inherit; padding: .5rem; border-radius: 6px;
+    border: 1px solid #8884; background: Field; color: FieldText;
+  }
+  textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; resize: vertical; }
+  button {
+    font: inherit; font-weight: 600; padding: .55rem 1.2rem; border-radius: 6px;
+    border: 0; background: #2563eb; color: #fff; cursor: pointer; justify-self: start;
+  }
+  button:disabled { background: #8887; cursor: not-allowed; }
+  .error { color: #c33; font-weight: 600; min-height: 1.2em; }
+  ol#log { list-style: none; padding: 0; display: grid; gap: .6rem; }
+  .entry {
+    border: 1px solid #8884; border-left-width: 4px; border-radius: 6px; padding: .7rem .9rem;
+  }
+  .entry.ok { border-left-color: #2a7; }
+  .entry.fail { border-left-color: #c33; }
+  .entry .status { font-weight: 700; }
+  .entry .reason { font-size: .9rem; opacity: .85; margin: .2rem 0; }
+  .entry .meta { font-size: .82rem; opacity: .7; }
+  .entry pre {
+    margin: .4rem 0 0; padding: .5rem; background: #8881; border-radius: 4px;
+    overflow-x: auto; font-size: .82rem; white-space: pre-wrap; word-break: break-word;
+  }
+  .empty { opacity: .6; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Webhook Trigger</h1>
+  {{if .Enabled}}
+  <p class="target">Delivering to <code>{{.URL}}</code></p>
+  {{else}}
+  <p class="warn">No <code>--webhook-url</code> is configured. Set it (the <code>--webhook-url</code> flag or <code>ECWID_MOCK_WEBHOOK_URL</code>) and restart to fire webhooks.</p>
+  {{end}}
+
+  <form id="fire-form">
+    <label>Event
+      <select id="event">
+        {{range .Groups}}<optgroup label="{{.Label}}">{{range .Events}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}
+      </select>
+    </label>
+    <label>entityId <span id="entity-type" class="hint"></span>
+      <input id="entityId" type="text" autocomplete="off" spellcheck="false">
+    </label>
+    <label>data <span id="data-hint" class="hint"></span>
+      <textarea id="data" rows="6" spellcheck="false"></textarea>
+    </label>
+    <label>signature
+      <select id="signature">
+        <option value="valid">valid</option>
+        <option value="invalid">invalid — a good handler must reject</option>
+        <option value="missing">missing — a good handler must reject</option>
+      </select>
+    </label>
+    <button id="fire" type="submit"{{if not .Enabled}} disabled{{end}}>Fire</button>
+    <span id="form-error" class="error"></span>
+  </form>
+
+  <h2>Delivery log</h2>
+  <ol id="log"><li class="empty">No webhooks fired yet.</li></ol>
+</main>
+
+<script>
+const CATALOG = {{.CatalogJSON}};
+(function () {
+  const eventSel = document.getElementById('event');
+  const entityIdEl = document.getElementById('entityId');
+  const entityTypeEl = document.getElementById('entity-type');
+  const dataEl = document.getElementById('data');
+  const dataHintEl = document.getElementById('data-hint');
+  const sigSel = document.getElementById('signature');
+  const form = document.getElementById('fire-form');
+  const fireBtn = document.getElementById('fire');
+  const formErr = document.getElementById('form-error');
+  const log = document.getElementById('log');
+  let logEmpty = true;
+
+  function prefill() {
+    const spec = CATALOG[eventSel.value];
+    if (!spec) return;
+    entityIdEl.value = spec.entityId;
+    entityTypeEl.textContent = '(serialized as a ' + spec.entityIdType + ')';
+    if (spec.hasData) {
+      dataEl.value = JSON.stringify(spec.data, null, 2);
+      dataEl.disabled = false;
+      dataHintEl.textContent = '';
+    } else {
+      dataEl.value = '';
+      dataEl.disabled = true;
+      dataHintEl.textContent = '(this event carries no data key)';
+    }
+  }
+
+  function addLog(res) {
+    if (logEmpty) { log.textContent = ''; logEmpty = false; }
+    const li = document.createElement('li');
+    li.className = 'entry ' + (res.delivered ? 'ok' : 'fail');
+
+    const status = document.createElement('div');
+    status.className = 'status';
+    const code = res.statusCode ? String(res.statusCode) : 'no response';
+    status.textContent = (res.delivered ? '✓ delivered' : '✗ not delivered') +
+      ' — ' + res.eventType + ' — ' + code;
+    li.appendChild(status);
+
+    const reason = document.createElement('div');
+    reason.className = 'reason';
+    reason.textContent = res.error ? res.error : res.reason;
+    li.appendChild(reason);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = 'signature: ' + res.signatureMode +
+      ' · entityId: ' + res.entityId + ' (' + res.entityIdType + ')' +
+      ' · ' + res.latencyMs + ' ms · eventId ' + res.eventId;
+    li.appendChild(meta);
+
+    if (res.responseBody) {
+      const pre = document.createElement('pre');
+      pre.textContent = res.responseBody;
+      li.appendChild(pre);
+    }
+
+    log.insertBefore(li, log.firstChild);
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    formErr.textContent = '';
+    const body = {
+      eventType: eventSel.value,
+      entityId: entityIdEl.value,
+      signature: sigSel.value,
+    };
+    const dataText = dataEl.value.trim();
+    if (!dataEl.disabled && dataText) {
+      try {
+        body.data = JSON.parse(dataText);
+      } catch (err) {
+        formErr.textContent = 'data is not valid JSON: ' + err.message;
+        return;
+      }
+    }
+    fireBtn.disabled = true;
+    try {
+      const resp = await fetch('/_mock/webhooks/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await resp.json();
+      if (!resp.ok) {
+        formErr.textContent = result.error || ('HTTP ' + resp.status);
+      } else {
+        addLog(result);
+      }
+    } catch (err) {
+      formErr.textContent = 'request failed: ' + err.message;
+    } finally {
+      fireBtn.disabled = false;
+    }
+  });
+
+  eventSel.addEventListener('change', prefill);
+  prefill();
+})();
+</script>
+</body>
+</html>
